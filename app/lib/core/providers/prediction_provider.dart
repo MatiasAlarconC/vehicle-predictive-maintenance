@@ -19,8 +19,9 @@ class PredictionProvider with ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  Future<void> makePrediction(
-    PredictionRequest request,
+  /// Realiza predicción usando una lectura OBD-II directa (flujo principal desde Diagnóstico)
+  Future<void> predictFromReading(
+    VehicleReading reading,
     AppMode appMode, {
     required String baseUrl,
     required Future<void> Function() onFallbackToDemo,
@@ -32,36 +33,41 @@ class PredictionProvider with ChangeNotifier {
 
     try {
       if (appMode == AppMode.demo) {
-        final mockResult = await _mockMlService.predictFromReading(
-          VehicleReading(
-            timestamp: DateTime.now(),
-            rpm: 850,
-            engineTemp: request.engineTemp,
-            speed: 40,
-            engineLoad: 42,
-            voltage: 12.8,
-            maf: 10,
-          ),
-        );
+        final mockResult = await _mockMlService.predictFromReading(reading);
         _predictionResponse = PredictionResponse(
           anomaly: mockResult.anomaly,
           probability: mockResult.probability,
           explanation: mockResult.explanation
-              .map(
-                (e) => ExplanationItem(
-                  variable: e.variable,
-                  contribution: e.contribution,
-                  direction: e.direction,
-                ),
-              )
+              .map((e) => ExplanationItem(
+                    variable: e.variable,
+                    contribution: e.contribution,
+                    direction: e.direction,
+                  ))
               .toList(),
         );
       } else {
         try {
+          final request = PredictionRequest(
+            engineTemp: reading.engineTemp,
+            brakePadThickness: 8.0,
+            tirePressure: 32.0,
+            maintenanceType: 'Routine Maintenance',
+          );
           _predictionResponse = await _apiService.predict(request, baseUrl: baseUrl);
         } catch (_) {
           await onFallbackToDemo();
-          _predictionResponse = await _apiService.getDemoPrediction(baseUrl: baseUrl);
+          final mockResult = await _mockMlService.predictFromReading(reading);
+          _predictionResponse = PredictionResponse(
+            anomaly: mockResult.anomaly,
+            probability: mockResult.probability,
+            explanation: mockResult.explanation
+                .map((e) => ExplanationItem(
+                      variable: e.variable,
+                      contribution: e.contribution,
+                      direction: e.direction,
+                    ))
+                .toList(),
+          );
         }
       }
       _status = PredictionStatus.success;
@@ -70,6 +76,26 @@ class PredictionProvider with ChangeNotifier {
       _errorMessage = e.toString();
     }
     notifyListeners();
+  }
+
+  /// Realiza predicción con request manual (compatibilidad)
+  Future<void> makePrediction(
+    PredictionRequest request,
+    AppMode appMode, {
+    required String baseUrl,
+    required Future<void> Function() onFallbackToDemo,
+  }) async {
+    final reading = VehicleReading(
+      timestamp: DateTime.now(),
+      rpm: 850,
+      engineTemp: request.engineTemp,
+      speed: 40,
+      engineLoad: 42,
+      voltage: 12.8,
+      maf: 10,
+    );
+    await predictFromReading(reading, appMode,
+        baseUrl: baseUrl, onFallbackToDemo: onFallbackToDemo);
   }
 
   void reset() {

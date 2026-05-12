@@ -10,7 +10,7 @@ class PredictionGauge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final probabilityPercent = probability * 100;
-    final color = probability > 0.7 ? AppTheme.errorColor : (probability > 0.4 ? AppTheme.warningColor : AppTheme.successColor);
+    final color = probability > 0.7 ? AppTheme.dangerColor : (probability > 0.4 ? AppTheme.warningColor : AppTheme.successColor);
 
     return SizedBox(
       height: 200,
@@ -29,7 +29,7 @@ class PredictionGauge extends StatelessWidget {
             ),
             PieChartSectionData(
               value: 100 - probabilityPercent,
-              color: color.withOpacity(0.2),
+              color: color.withValues(alpha: 0.2),
               radius: 25,
               showTitle: false,
             ),

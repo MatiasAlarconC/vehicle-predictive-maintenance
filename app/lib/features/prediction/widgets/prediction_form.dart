@@ -51,7 +51,7 @@ class _PredictionFormState extends State<PredictionForm> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: _selectedMaintenanceType,
+            initialValue: _selectedMaintenanceType,
             decoration: const InputDecoration(labelText: 'Tipo de Mantenimiento'),
             items: ['Routine Maintenance', 'Component Replacement', 'Repair']
                 .map((label) => DropdownMenuItem(
