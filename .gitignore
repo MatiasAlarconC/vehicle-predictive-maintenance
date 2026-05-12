@@ -1,0 +1,12 @@
+.DS_Store
+**/.DS_Store
+
+app/.dart_tool/
+app/build/
+app/.vscode/
+
+ml/.venv/
+ml/.venv*/
+ml/data/
+
+**/build/
