@@ -55,8 +55,8 @@ class AuthProvider with ChangeNotifier {
           ? SignInResult.success
           : SignInResult.failure('Credenciales incorrectas');
     } on clerk.ClerkError catch (e) {
-      _lastError = e.message;
-      return SignInResult.failure(e.message);
+      _lastError = e.toString();
+      return SignInResult.failure(e.toString());
     } catch (e) {
       _lastError = e.toString();
       return SignInResult.failure(e.toString());
@@ -85,11 +85,15 @@ class AuthProvider with ChangeNotifier {
         passwordConfirmation: password,
       );
       if (_auth.user != null) return SignUpResult.success;
-      // Likely needs email verification
+      if (_auth.signUp == null) {
+        return SignUpResult.failure('No se pudo crear la cuenta. Revisa tu conexión.');
+      }
+      // Disparar envío del código de verificación por email
+      await _auth.attemptSignUp(strategy: clerk.Strategy.emailCode);
       return SignUpResult.needsVerification;
     } on clerk.ClerkError catch (e) {
-      _lastError = e.message;
-      return SignUpResult.failure(e.message);
+      _lastError = e.toString();
+      return SignUpResult.failure(e.toString());
     } catch (e) {
       _lastError = e.toString();
       return SignUpResult.failure(e.toString());
@@ -112,8 +116,8 @@ class AuthProvider with ChangeNotifier {
           ? SignInResult.success
           : SignInResult.failure('Verificación fallida');
     } on clerk.ClerkError catch (e) {
-      _lastError = e.message;
-      return SignInResult.failure(e.message);
+      _lastError = e.toString();
+      return SignInResult.failure(e.toString());
     } catch (e) {
       _lastError = e.toString();
       return SignInResult.failure(e.toString());
