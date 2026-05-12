@@ -25,43 +25,45 @@ class StatusCardWidget extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         color: AppTheme.surface,
         border: Border.all(
           color: isAlert ? color.withValues(alpha: 0.5) : AppTheme.borderColor,
           width: isAlert ? 1.5 : 1,
         ),
-        boxShadow: isAlert ? AppTheme.glowShadow(color, intensity: 0.2) : AppTheme.cardShadow,
+        boxShadow: isAlert
+            ? AppTheme.glowShadow(color, intensity: 0.15)
+            : AppTheme.cardShadow,
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(9),
                   ),
-                  child: Icon(icon, color: color, size: 20),
+                  child: Icon(icon, color: color, size: 17),
                 ),
                 const Spacer(),
                 if (isAlert)
                   Container(
-                    width: 8,
-                    height: 8,
+                    width: 7,
+                    height: 7,
                     decoration: BoxDecoration(
                       color: color,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
                           color: color.withValues(alpha: 0.6),
-                          blurRadius: 6,
+                          blurRadius: 5,
                         ),
                       ],
                     ),
@@ -71,27 +73,32 @@ class StatusCardWidget extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 11,
+              style: const TextStyle(
+                fontSize: 10,
                 color: AppTheme.textSecondary,
                 letterSpacing: 0.5,
                 fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 2),
-            Text(
-              value,
-              style: GoogleFonts.rajdhani(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: isAlert ? color : AppTheme.textPrimary,
-                height: 1.1,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: GoogleFonts.rajdhani(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                  color: isAlert ? color : AppTheme.textPrimary,
+                  height: 1.1,
+                ),
               ),
             ),
             if (subtitle != null)
               Text(
                 subtitle!,
-                style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+                style: const TextStyle(
+                    fontSize: 10, color: AppTheme.textSecondary),
               ),
           ],
         ),
