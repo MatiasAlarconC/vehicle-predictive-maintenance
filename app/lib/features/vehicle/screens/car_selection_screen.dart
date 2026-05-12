@@ -39,7 +39,7 @@ class _CarSelectionScreenState extends State<CarSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.read<AuthProvider>();
+    final firstName = context.read<AuthProvider>().firstName;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -54,7 +54,7 @@ class _CarSelectionScreenState extends State<CarSelectionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Hola, ${auth.firstName}',
+                    'Hola, $firstName',
                     style: const TextStyle(
                         fontSize: 14, color: AppTheme.textSecondary),
                   ),

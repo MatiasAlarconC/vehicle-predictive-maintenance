@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter analyze *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(flutter pub *)",
+      "Bash(flutter build *)",
+      "Read(//Users/matiasalarcon/.pub-cache/hosted/pub.dev/clerk_flutter-0.0.15-beta/lib/generated/**)",
+      "Read(//Users/matiasalarcon/.pub-cache/hosted/pub.dev/clerk_flutter-0.0.15-beta/lib/**)",
+      "Read(//Users/matiasalarcon/.pub-cache/hosted/pub.dev/clerk_flutter-0.0.15-beta/**)",
+      "Bash(grep -rn \"class Auth\\\\b\\\\|Future.*signOut\\\\|Future.*attemptSign\\\\|get user\\\\|class ClerkAuth\\\\b\" ~/.pub-cache/hosted/pub.dev/clerk_auth-0.0.15-beta/lib/src/clerk_auth/auth.dart | head -15)",
+      "Read(//Users/matiasalarcon/.pub-cache/hosted/pub.dev/clerk_auth-0.0.15-beta/lib/src/clerk_auth/**)",
+      "Bash(grep -n \"publishableKey\\\\|class.*Config\\\\|AuthConfig\" ~/.pub-cache/hosted/pub.dev/clerk_auth-0.0.15-beta/lib/src/clerk_auth/clerk_config.dart 2>/dev/null | head -20 *)",
+      "Read(//Users/matiasalarcon/.pub-cache/hosted/pub.dev/clerk_auth-0.0.15-beta/**)"
+    ]
+  }
+}

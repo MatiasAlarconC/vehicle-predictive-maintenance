@@ -15,43 +15,28 @@ class AppRouter {
       final auth = context.read<AuthProvider>();
       final vehicle = context.read<VehicleProvider>();
 
-      final isLoggingIn = state.matchedLocation == '/login';
-      final isSelectingVehicle = state.matchedLocation == '/select-vehicle';
-      final isSplash = state.matchedLocation == '/';
+      final loc = state.matchedLocation;
+      if (loc == '/') return null;
 
-      if (isSplash) return null;
+      // Still initializing Clerk — wait at splash
+      if (!auth.isInitialized) return '/';
 
-      if (!auth.isLoggedIn) {
-        return isLoggingIn ? null : '/login';
+      if (!auth.isSignedIn) {
+        return loc == '/login' ? null : '/login';
       }
 
       if (!vehicle.hasVehicle) {
-        return isSelectingVehicle ? null : '/select-vehicle';
+        return loc == '/select-vehicle' ? null : '/select-vehicle';
       }
 
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const SplashScreen(),
-      ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: '/select-vehicle',
-        builder: (context, state) => const CarSelectionScreen(),
-      ),
-      GoRoute(
-        path: '/dashboard',
-        builder: (context, state) => const DashboardScreen(),
-      ),
-      GoRoute(
-        path: '/predict',
-        builder: (context, state) => const PredictionScreen(),
-      ),
+      GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
+      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/select-vehicle', builder: (_, __) => const CarSelectionScreen()),
+      GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
+      GoRoute(path: '/predict', builder: (_, __) => const PredictionScreen()),
     ],
   );
 }

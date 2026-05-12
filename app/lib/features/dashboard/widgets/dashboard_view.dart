@@ -18,7 +18,7 @@ class DashboardView extends StatelessWidget {
   Widget build(BuildContext context) {
     final diagnostics = context.watch<DiagnosticsProvider>();
     final vehicle = context.watch<VehicleProvider>().vehicle;
-    final auth = context.watch<AuthProvider>();
+    final firstName = context.watch<AuthProvider>().firstName;
     final reading = diagnostics.latestReading;
     final health = diagnostics.vehicleHealth;
 
@@ -48,7 +48,7 @@ class DashboardView extends StatelessWidget {
             health: health,
             statusLabel: statusLabel,
             statusColor: statusColor,
-            userName: auth.firstName,
+            userName: firstName,
           ),
         ),
 

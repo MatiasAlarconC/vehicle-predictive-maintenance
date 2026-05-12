@@ -35,13 +35,17 @@ dependencies:
   animated_text_kit: ^4.2.2
   
   # Formateo de fechas y números
-  intl: ^0.19.0
+  intl: ^0.20.0
+
+  # Autenticación Clerk
   
   # Fuentes de Google
   google_fonts: ^6.2.1
 
   # Iconos de Cupertino
   cupertino_icons: ^1.0.2
+  clerk_auth: ^0.0.15-beta
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

@@ -1,71 +1,158 @@
+import 'package:clerk_auth/clerk_auth.dart' as clerk;
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:vehicle_predictive_maintenance_app/core/constants/clerk_config.dart';
 
+/// Wraps clerk_auth's [clerk.Auth] as a [ChangeNotifier] Provider.
+/// Handles sign-in, sign-up (with email verification), and sign-out.
 class AuthProvider with ChangeNotifier {
-  bool _isLoggedIn = false;
-  String _userName = '';
-  String _userEmail = '';
+  late clerk.Auth _auth;
+  bool _initialized = false;
+  bool _loading = false;
+  String? _lastError;
 
-  bool get isLoggedIn => _isLoggedIn;
-  String get userName => _userName;
-  String get userEmail => _userEmail;
-  String get firstName => _userName.split(' ').first;
+  bool get isInitialized => _initialized;
+  bool get isLoading => _loading;
+  bool get isSignedIn => _initialized && _auth.user != null;
+  clerk.User? get user => _initialized ? _auth.user : null;
+  String get firstName => user?.firstName ?? user?.email?.split('@').first ?? '';
+  String? get lastError => _lastError;
 
   AuthProvider() {
-    _load();
+    _init();
   }
 
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    _isLoggedIn = prefs.getBool('auth_logged_in') ?? false;
-    _userName = prefs.getString('auth_name') ?? '';
-    _userEmail = prefs.getString('auth_email') ?? '';
+  Future<void> _init() async {
+    _auth = clerk.Auth(
+      config: clerk.AuthConfig(
+        publishableKey: kClerkPublishableKey,
+        persistor: clerk.DefaultPersistor(
+          getCacheDirectory: getApplicationDocumentsDirectory,
+        ),
+      ),
+    );
+    try {
+      await _auth.initialize();
+    } catch (_) {
+      // If the publishable key is a placeholder, initialization will fail —
+      // the app will still open, but auth calls will show an error snackbar.
+    }
+    _initialized = true;
     notifyListeners();
   }
 
-  Future<bool> login(String email, String password) async {
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (email.isNotEmpty && password.length >= 6) {
-      _isLoggedIn = true;
-      _userEmail = email;
-      _userName = email.split('@').first.replaceAll('.', ' ').replaceAll('_', ' ');
-      _userName = _userName.split(' ')
-          .map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1))
-          .join(' ');
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('auth_logged_in', true);
-      await prefs.setString('auth_name', _userName);
-      await prefs.setString('auth_email', _userEmail);
+  Future<SignInResult> signIn(String email, String password) async {
+    _loading = true;
+    _lastError = null;
+    notifyListeners();
+    try {
+      await _auth.attemptSignIn(
+        strategy: clerk.Strategy.password,
+        identifier: email,
+        password: password,
+      );
+      return _auth.user != null
+          ? SignInResult.success
+          : SignInResult.failure('Credenciales incorrectas');
+    } on clerk.ClerkError catch (e) {
+      _lastError = e.message;
+      return SignInResult.failure(e.message);
+    } catch (e) {
+      _lastError = e.toString();
+      return SignInResult.failure(e.toString());
+    } finally {
+      _loading = false;
       notifyListeners();
-      return true;
     }
-    return false;
   }
 
-  Future<bool> register(String name, String email, String password) async {
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (name.isNotEmpty && email.isNotEmpty && password.length >= 6) {
-      _isLoggedIn = true;
-      _userName = name;
-      _userEmail = email;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('auth_logged_in', true);
-      await prefs.setString('auth_name', _userName);
-      await prefs.setString('auth_email', _userEmail);
+  Future<SignUpResult> signUp({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+  }) async {
+    _loading = true;
+    _lastError = null;
+    notifyListeners();
+    try {
+      await _auth.attemptSignUp(
+        strategy: clerk.Strategy.password,
+        firstName: firstName,
+        lastName: lastName,
+        emailAddress: email,
+        password: password,
+        passwordConfirmation: password,
+      );
+      if (_auth.user != null) return SignUpResult.success;
+      // Likely needs email verification
+      return SignUpResult.needsVerification;
+    } on clerk.ClerkError catch (e) {
+      _lastError = e.message;
+      return SignUpResult.failure(e.message);
+    } catch (e) {
+      _lastError = e.toString();
+      return SignUpResult.failure(e.toString());
+    } finally {
+      _loading = false;
       notifyListeners();
-      return true;
     }
-    return false;
   }
 
-  Future<void> logout() async {
-    _isLoggedIn = false;
-    _userName = '';
-    _userEmail = '';
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('auth_logged_in', false);
-    await prefs.remove('auth_name');
-    await prefs.remove('auth_email');
+  Future<SignInResult> verifyEmail(String code) async {
+    _loading = true;
+    _lastError = null;
+    notifyListeners();
+    try {
+      await _auth.attemptSignUp(
+        strategy: clerk.Strategy.emailCode,
+        code: code,
+      );
+      return _auth.user != null
+          ? SignInResult.success
+          : SignInResult.failure('Verificación fallida');
+    } on clerk.ClerkError catch (e) {
+      _lastError = e.message;
+      return SignInResult.failure(e.message);
+    } catch (e) {
+      _lastError = e.toString();
+      return SignInResult.failure(e.toString());
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+    } catch (_) {}
     notifyListeners();
   }
+
+  @override
+  void dispose() {
+    if (_initialized) _auth.terminate();
+    super.dispose();
+  }
+}
+
+// ── Result types ──────────────────────────────────────────────────────────────
+
+class SignInResult {
+  final bool ok;
+  final String? error;
+  const SignInResult._(this.ok, this.error);
+  static const success = SignInResult._(true, null);
+  factory SignInResult.failure(String msg) => SignInResult._(false, msg);
+}
+
+class SignUpResult {
+  final bool ok;
+  final bool needsEmailVerification;
+  final String? error;
+  const SignUpResult._(this.ok, this.needsEmailVerification, this.error);
+  static const success = SignUpResult._(true, false, null);
+  static const needsVerification = SignUpResult._(false, true, null);
+  factory SignUpResult.failure(String msg) => SignUpResult._(false, false, msg);
 }
