@@ -14,7 +14,8 @@
       "Bash(grep -n \"publishableKey\\\\|class.*Config\\\\|AuthConfig\" ~/.pub-cache/hosted/pub.dev/clerk_auth-0.0.15-beta/lib/src/clerk_auth/clerk_config.dart 2>/dev/null | head -20 *)",
       "Read(//Users/matiasalarcon/.pub-cache/hosted/pub.dev/clerk_auth-0.0.15-beta/**)",
       "Bash(cd /Users/matiasalarcon/vehicle-predictive-maintenance/app && cat pubspec.lock | grep -A3 \"clerk_auth\" && find ~/.pub-cache/hosted -name \"*.dart\" -path \"*/clerk_auth*\" | grep -v \".dart_tool\" | head -20)",
-      "Read(//Users/matiasalarcon/.pub-cache/hosted/**)"
+      "Read(//Users/matiasalarcon/.pub-cache/hosted/**)",
+      "Bash(git push *)"
     ]
   }
 }

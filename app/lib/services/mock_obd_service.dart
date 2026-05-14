@@ -6,7 +6,8 @@ import 'package:vehicle_predictive_maintenance_app/models/vehicle_reading.dart';
 class MockObdService {
   final Random _random = Random();
   Timer? _timer;
-  final StreamController<VehicleReading> _controller = StreamController.broadcast();
+  final StreamController<VehicleReading> _controller =
+      StreamController.broadcast();
 
   Stream<VehicleReading> get stream => _controller.stream;
 
@@ -49,6 +50,10 @@ class MockObdService {
       engineLoad: 20 + _random.nextDouble() * 70,
       voltage: voltage,
       maf: 5 + _random.nextDouble() * 20,
+      brakePadThickness: 3 + _random.nextDouble() * 10,
+      tirePressure: 28 + _random.nextDouble() * 8,
+      maintenanceType:
+          _random.nextBool() ? 'Routine Maintenance' : 'Component Replacement',
     );
   }
 }

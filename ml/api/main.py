@@ -1,11 +1,24 @@
 # ml/api/main.py
 
+from datetime import datetime
+
 from fastapi import FastAPI, HTTPException
-from .schemas import PredictionRequest, PredictionResponse, HealthResponse, ExplanationItem
+from .schemas import (
+    PredictionRequest,
+    PredictionResponse,
+    HealthResponse,
+    ExplanationItem,
+    ObdLiveResponse,
+    HistoryItem,
+    HistoryResponse,
+)
 from .model_loader import model_artifacts
 import pandas as pd
 import numpy as np
 import random
+
+
+prediction_history: list[HistoryItem] = []
 
 
 def _extract_feature_name(feature: str, feature_names: list[str]) -> str:
@@ -99,6 +112,29 @@ def _preprocess_input(request: PredictionRequest) -> np.ndarray:
     
     return scaled_input
 
+
+def _generate_live_obd_sample() -> ObdLiveResponse:
+    """
+    Genera una lectura OBD-II simulada compatible con el flujo de producción.
+    En Raspberry Pi este punto puede reemplazarse por lectura real del adaptador.
+    """
+    return ObdLiveResponse(
+        timestamp=datetime.utcnow().isoformat(),
+        rpm=random.uniform(850.0, 4200.0),
+        engine_temp=random.uniform(78.0, 112.0),
+        speed=random.uniform(0.0, 120.0),
+        engine_load=random.uniform(22.0, 88.0),
+        voltage=random.uniform(11.6, 14.2),
+        maf=random.uniform(5.5, 22.0),
+        brake_pad_thickness=random.uniform(2.5, 12.0),
+        tire_pressure=random.uniform(28.0, 37.0),
+        maintenance_type=random.choice([
+            'Routine Maintenance',
+            'Component Replacement',
+            'Repair',
+        ]),
+    )
+
 @app.post("/predict", response_model=PredictionResponse, tags=["Prediction"])
 async def predict(request: PredictionRequest):
     """
@@ -116,13 +152,39 @@ async def predict(request: PredictionRequest):
         # Obtener la explicación
         explanation = _explain_prediction(scaled_input)
         
-        return PredictionResponse(
+        response = PredictionResponse(
             anomaly=prediction,
             probability=probability,
             explanation=explanation
         )
+        prediction_history.insert(
+            0,
+            HistoryItem(
+                timestamp=datetime.utcnow().isoformat(),
+                anomaly=prediction,
+                probability=float(probability),
+            ),
+        )
+        del prediction_history[50:]
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error durante la predicción: {str(e)}")
+
+
+@app.get("/obd/live", response_model=ObdLiveResponse, tags=["OBD-II"])
+async def live_obd():
+    """
+    Entrega una lectura OBD-II compatible con la app Flutter.
+    """
+    return _generate_live_obd_sample()
+
+
+@app.get("/history", response_model=HistoryResponse, tags=["Prediction"])
+async def prediction_history_endpoint():
+    """
+    Devuelve las últimas predicciones procesadas por la API.
+    """
+    return HistoryResponse(items=prediction_history)
 
 @app.get("/demo", response_model=PredictionResponse, tags=["Prediction"])
 async def demo_prediction():

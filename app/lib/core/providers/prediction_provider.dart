@@ -49,11 +49,12 @@ class PredictionProvider with ChangeNotifier {
         try {
           final request = PredictionRequest(
             engineTemp: reading.engineTemp,
-            brakePadThickness: 8.0,
-            tirePressure: 32.0,
-            maintenanceType: 'Routine Maintenance',
+            brakePadThickness: reading.brakePadThickness ?? 8.0,
+            tirePressure: reading.tirePressure ?? 32.0,
+            maintenanceType: reading.maintenanceType ?? 'Routine Maintenance',
           );
-          _predictionResponse = await _apiService.predict(request, baseUrl: baseUrl);
+          _predictionResponse =
+              await _apiService.predict(request, baseUrl: baseUrl);
         } catch (_) {
           await onFallbackToDemo();
           final mockResult = await _mockMlService.predictFromReading(reading);

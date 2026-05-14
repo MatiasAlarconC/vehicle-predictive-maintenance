@@ -6,6 +6,9 @@ class VehicleReading {
   final double engineLoad;
   final double voltage;
   final double maf;
+  final double? brakePadThickness;
+  final double? tirePressure;
+  final String? maintenanceType;
 
   const VehicleReading({
     required this.timestamp,
@@ -15,6 +18,9 @@ class VehicleReading {
     required this.engineLoad,
     required this.voltage,
     required this.maf,
+    this.brakePadThickness,
+    this.tirePressure,
+    this.maintenanceType,
   });
 
   bool get isAnomalous => engineTemp > 105 || voltage < 11.5 || rpm > 5500;

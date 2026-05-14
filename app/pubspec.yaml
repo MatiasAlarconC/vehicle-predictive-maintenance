@@ -38,14 +38,24 @@ dependencies:
   intl: ^0.20.0
 
   # Autenticación Clerk
-  
+  clerk_auth: ^0.0.15-beta
+  path_provider: ^2.1.5
+
   # Fuentes de Google
   google_fonts: ^6.2.1
 
   # Iconos de Cupertino
   cupertino_icons: ^1.0.2
-  clerk_auth: ^0.0.15-beta
-  path_provider: ^2.1.5
+
+  # Renderizado SVG (logo Vera)
+  flutter_svg: ^2.0.17
+
+  # Visor de modelos 3D (.glb / .gltf)
+  model_viewer_plus: ^1.7.0
+
+  # Deep links (OAuth callback) y lanzar URLs
+  app_links: ^6.3.2
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -53,10 +63,14 @@ dev_dependencies:
 
   flutter_lints: ^4.0.0
 
+  flutter_launcher_icons: ^0.14.3
+
 flutter:
   uses-material-design: true
 
   assets:
     - assets/images/
     - assets/animations/
+    - assets/images/vera_logo.svg
+    - assets/models/
 

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:vehicle_predictive_maintenance_app/app/theme/app_theme.dart';
@@ -7,10 +8,10 @@ import 'package:vehicle_predictive_maintenance_app/app/widgets/custom_card.dart'
 import 'package:vehicle_predictive_maintenance_app/core/enums/app_enums.dart';
 import 'package:vehicle_predictive_maintenance_app/core/providers/app_provider.dart';
 import 'package:vehicle_predictive_maintenance_app/core/providers/diagnostics_provider.dart';
+import 'package:vehicle_predictive_maintenance_app/core/providers/history_provider.dart';
 import 'package:vehicle_predictive_maintenance_app/core/providers/prediction_provider.dart';
 import 'package:vehicle_predictive_maintenance_app/features/prediction/widgets/explanation_widget.dart';
 import 'package:vehicle_predictive_maintenance_app/models/prediction_response.dart';
-import 'package:vehicle_predictive_maintenance_app/services/history_service.dart';
 
 class PredictionScreen extends StatefulWidget {
   const PredictionScreen({super.key});
@@ -40,7 +41,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
       appProvider.appMode,
       baseUrl: appProvider.baseUrl,
       onFallbackToDemo: () async {
-        await appProvider.setAppMode(AppMode.demo);
+        await appProvider.fallbackToDemo();
       },
     );
   }
@@ -87,9 +88,9 @@ class _LoadingViewState extends State<_LoadingView>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 2))
-      ..repeat();
+    _ctrl =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2))
+          ..repeat();
     _rotAnim = Tween<double>(begin: 0, end: 2 * math.pi).animate(_ctrl);
   }
 
@@ -153,8 +154,7 @@ class _LoadingViewState extends State<_LoadingView>
             const SizedBox(height: 8),
             Text(
               'Procesando datos con modelo XGBoost...',
-              style: TextStyle(
-                  fontSize: 13, color: AppTheme.textSecondary),
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 40),
             SizedBox(
@@ -164,7 +164,8 @@ class _LoadingViewState extends State<_LoadingView>
                 child: const LinearProgressIndicator(
                   minHeight: 3,
                   backgroundColor: AppTheme.borderColor,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
                 ),
               ),
             ),
@@ -228,14 +229,22 @@ class _ResultView extends StatelessWidget {
   }
 
   Future<void> _saveToHistory(BuildContext context) async {
-    await HistoryService().saveRecord({
+    final diagnostics = context.read<DiagnosticsProvider>();
+    final appProvider = context.read<AppProvider>();
+
+    await context.read<HistoryProvider>().saveRecord({
       'timestamp': DateTime.now().toIso8601String(),
       'anomaly': response.anomaly,
       'probability': response.probability,
+      'health': diagnostics.vehicleHealth,
+      'mode': appProvider.appMode.name,
     });
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Guardado en historial')),
+        const SnackBar(
+          content: Text('Diagnóstico guardado en historial'),
+          backgroundColor: AppTheme.successColor,
+        ),
       );
     }
   }
@@ -303,8 +312,8 @@ class _ResultView extends StatelessWidget {
                         decoration: BoxDecoration(
                           gradient: AppTheme.primaryGradient,
                           borderRadius: BorderRadius.circular(14),
-                          boxShadow: AppTheme.glowShadow(
-                              AppTheme.primaryColor, intensity: 0.3),
+                          boxShadow: AppTheme.glowShadow(AppTheme.primaryColor,
+                              intensity: 0.3),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -330,9 +339,7 @@ class _ResultView extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => context
-                          .read<PredictionProvider>()
-                          .reset(),
+                      onTap: () => context.read<PredictionProvider>().reset(),
                       child: Container(
                         height: 54,
                         decoration: BoxDecoration(
@@ -411,7 +418,7 @@ class _ResultHeader extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: GestureDetector(
-              onTap: () => Navigator.of(context).pop(),
+              onTap: () => context.go('/dashboard'),
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(

@@ -1,21 +1,31 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:vehicle_predictive_maintenance_app/core/enums/app_enums.dart';
+import 'package:vehicle_predictive_maintenance_app/core/providers/app_provider.dart';
 import 'package:vehicle_predictive_maintenance_app/models/vehicle_reading.dart';
+import 'package:vehicle_predictive_maintenance_app/services/api_service.dart';
 import 'package:vehicle_predictive_maintenance_app/services/mock_obd_service.dart';
 
 /// Proveedor global de lecturas OBD-II en tiempo real.
 /// Mantiene la última lectura disponible para todos los widgets.
 class DiagnosticsProvider with ChangeNotifier {
+  final ApiService _apiService = ApiService();
   final MockObdService _obdService = MockObdService();
   StreamSubscription<VehicleReading>? _subscription;
+  Timer? _pollingTimer;
 
   final List<VehicleReading> _readings = [];
   VehicleReading? _latestReading;
   bool _isRunning = false;
+  bool _isUsingDemoFallback = false;
+  AppMode _appMode = AppMode.demo;
+  String _baseUrl = '';
+  AppProvider? _appProvider;
 
   List<VehicleReading> get readings => List.unmodifiable(_readings);
   VehicleReading? get latestReading => _latestReading;
   bool get isRunning => _isRunning;
+  bool get isUsingDemoFallback => _isUsingDemoFallback;
 
   /// Salud del vehículo calculada a partir de la última lectura (0-100)
   double get vehicleHealth {
@@ -29,27 +39,102 @@ class DiagnosticsProvider with ChangeNotifier {
     return score.clamp(0, 100);
   }
 
+  void updateConfig(AppProvider appProvider) {
+    final nextMode = appProvider.appMode;
+    final nextBaseUrl = appProvider.baseUrl;
+    final shouldRestart =
+        _isRunning && (_appMode != nextMode || _baseUrl != nextBaseUrl);
+
+    _appProvider = appProvider;
+    _appMode = nextMode;
+    _baseUrl = nextBaseUrl;
+    _isUsingDemoFallback = nextMode == AppMode.demo;
+
+    if (shouldRestart) {
+      stopStream();
+      startStream();
+    } else {
+      notifyListeners();
+    }
+  }
+
   void startStream() {
     if (_isRunning) return;
     _isRunning = true;
+    if (_appMode == AppMode.production) {
+      _startProductionPolling();
+      return;
+    }
+    _startDemoStream();
+  }
+
+  void _startDemoStream() {
+    _isUsingDemoFallback = true;
     _obdService.start();
-    _subscription = _obdService.stream.listen((reading) {
-      _latestReading = reading;
-      _readings.add(reading);
-      if (_readings.length > 20) _readings.removeAt(0);
-      notifyListeners();
+    _subscription = _obdService.stream.listen(_pushReading);
+    notifyListeners();
+  }
+
+  void _startProductionPolling() {
+    _isUsingDemoFallback = false;
+    unawaited(_fetchProductionReading());
+    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      unawaited(_fetchProductionReading());
     });
+    notifyListeners();
+  }
+
+  Future<void> _fetchProductionReading() async {
+    try {
+      final reading = await _apiService.getLiveObd(baseUrl: _baseUrl);
+      _isUsingDemoFallback = false;
+      unawaited(_appProvider?.setConnection(true) ?? Future.value());
+      _pushReading(reading);
+    } catch (_) {
+      await _fallbackToDemo();
+    }
+  }
+
+  Future<void> _fallbackToDemo() async {
+    if (_appMode == AppMode.demo && _isUsingDemoFallback) return;
+
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+
+    _appMode = AppMode.demo;
+    _isUsingDemoFallback = true;
+    await _appProvider?.setConnection(false);
+    await _appProvider?.setAppMode(AppMode.demo);
+
+    if (_subscription == null) {
+      _startDemoStream();
+    } else {
+      notifyListeners();
+    }
+  }
+
+  void _pushReading(VehicleReading reading) {
+    _latestReading = reading;
+    _readings.add(reading);
+    if (_readings.length > 20) {
+      _readings.removeAt(0);
+    }
+    notifyListeners();
   }
 
   void stopStream() {
     _isRunning = false;
     _subscription?.cancel();
+    _subscription = null;
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
     _obdService.stop();
   }
 
   @override
   void dispose() {
     _subscription?.cancel();
+    _pollingTimer?.cancel();
     _obdService.dispose();
     super.dispose();
   }

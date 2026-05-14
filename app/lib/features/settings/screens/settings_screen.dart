@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:vehicle_predictive_maintenance_app/app/theme/app_theme.dart';
 import 'package:vehicle_predictive_maintenance_app/app/widgets/custom_card.dart';
 import 'package:vehicle_predictive_maintenance_app/core/constants/app_constants.dart';
 import 'package:vehicle_predictive_maintenance_app/core/enums/app_enums.dart';
 import 'package:vehicle_predictive_maintenance_app/core/providers/app_provider.dart';
+import 'package:vehicle_predictive_maintenance_app/core/providers/auth_provider.dart';
 import 'package:vehicle_predictive_maintenance_app/services/api_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -18,14 +20,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _ipController = TextEditingController();
   final _portController = TextEditingController();
   bool _testing = false;
-  bool _connectionOk = false;
+  bool _initialized = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_initialized) return;
     final appProvider = context.read<AppProvider>();
     _ipController.text = appProvider.serverIp;
     _portController.text = appProvider.serverPort;
+    _initialized = true;
   }
 
   @override
@@ -36,20 +40,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _testConnection() async {
+    if (_ipController.text.trim().isEmpty ||
+        _portController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ingresa IP y puerto antes de probar la conexión'),
+          backgroundColor: AppTheme.dangerColor,
+        ),
+      );
+      return;
+    }
+
     setState(() => _testing = true);
     final appProvider = context.read<AppProvider>();
-    final baseUrl = 'http://${_ipController.text}:${_portController.text}';
+    final baseUrl =
+        'http://${_ipController.text.trim()}:${_portController.text.trim()}';
     final ok = await ApiService().pingHealth(baseUrl);
-    await appProvider.setServer(_ipController.text, _portController.text);
+    await appProvider.setServer(
+        _ipController.text.trim(), _portController.text.trim());
     await appProvider.setConnection(ok);
     if (mounted) {
       setState(() {
         _testing = false;
-        _connectionOk = ok;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ok ? '✓ Conexión exitosa' : '✗ Sin conexión al servidor'),
+          content:
+              Text(ok ? '✓ Conexión exitosa' : '✗ Sin conexión al servidor'),
           backgroundColor: ok ? AppTheme.successColor : AppTheme.dangerColor,
         ),
       );
@@ -60,6 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final appProvider = context.watch<AppProvider>();
     final isDemo = appProvider.appMode == AppMode.demo;
+    final connectionOk = appProvider.isConnected;
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
@@ -69,7 +87,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-
               // Modo de operación
               _SectionTitle(label: 'MODO DE OPERACIÓN'),
               const SizedBox(height: 10),
@@ -125,12 +142,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           duration: const Duration(milliseconds: 300),
                           height: 50,
                           decoration: BoxDecoration(
-                            color: _connectionOk
+                            color: connectionOk
                                 ? AppTheme.successColor.withValues(alpha: 0.1)
                                 : AppTheme.surfaceElevated,
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: _connectionOk
+                              color: connectionOk
                                   ? AppTheme.successColor.withValues(alpha: 0.4)
                                   : AppTheme.borderColor,
                             ),
@@ -149,11 +166,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 )
                               else
                                 Icon(
-                                  _connectionOk
+                                  connectionOk
                                       ? Icons.check_circle_rounded
                                       : Icons.network_check_rounded,
                                   size: 18,
-                                  color: _connectionOk
+                                  color: connectionOk
                                       ? AppTheme.successColor
                                       : AppTheme.primaryColor,
                                 ),
@@ -161,13 +178,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Text(
                                 _testing
                                     ? 'Probando...'
-                                    : _connectionOk
+                                    : connectionOk
                                         ? 'Conectado'
                                         : 'Probar conexión',
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: _connectionOk
+                                  color: connectionOk
                                       ? AppTheme.successColor
                                       : AppTheme.primaryColor,
                                   letterSpacing: 0.3,
@@ -191,7 +208,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   children: [
                     _InfoRow(
-                        label: 'Versión', value: '1.0.0',
+                        label: 'Versión',
+                        value: '1.0.0',
                         icon: Icons.info_outline_rounded),
                     const Divider(color: AppTheme.borderColor, height: 20),
                     _InfoRow(
@@ -219,10 +237,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 24),
 
+              // Cerrar sesión
+              _SectionTitle(label: 'CUENTA'),
+              const SizedBox(height: 10),
+              _SignOutButton(),
+
+              const SizedBox(height: 24),
+
               // Footer
               Center(
                 child: Text(
-                  'Vehicle Predictive Maintenance · Tesis Universitaria',
+                  'Vera · Mantenimiento Predictivo con IA',
                   style: TextStyle(
                     fontSize: 11,
                     color: AppTheme.textSecondary.withValues(alpha: 0.5),
@@ -332,9 +357,7 @@ class _ModeToggle extends StatelessWidget {
                 ),
               ),
               Text(
-                isDemo
-                    ? 'Datos simulados OBD-II'
-                    : 'Conectado a Raspberry Pi',
+                isDemo ? 'Datos simulados OBD-II' : 'Conectado a Raspberry Pi',
                 style: const TextStyle(
                     fontSize: 12, color: AppTheme.textSecondary),
               ),
@@ -355,7 +378,8 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  const _InfoRow({required this.label, required this.value, required this.icon});
+  const _InfoRow(
+      {required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -364,7 +388,8 @@ class _InfoRow extends StatelessWidget {
         Icon(icon, size: 16, color: AppTheme.textSecondary),
         const SizedBox(width: 10),
         Text(label,
-            style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+            style:
+                const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
         const Spacer(),
         Flexible(
           child: Text(
@@ -378,6 +403,77 @@ class _InfoRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SignOutButton extends StatelessWidget {
+  const _SignOutButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            backgroundColor: AppTheme.surfaceElevated,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16)),
+            title: const Text('Cerrar sesión',
+                style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontFamily: 'Rajdhani',
+                    fontWeight: FontWeight.w700)),
+            content: const Text('¿Estás seguro que quieres salir?',
+                style: TextStyle(color: AppTheme.textSecondary)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancelar',
+                    style: TextStyle(color: AppTheme.textSecondary)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Cerrar sesión',
+                    style: TextStyle(color: AppTheme.dangerColor,
+                        fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        );
+        if (confirmed == true && context.mounted) {
+          await context.read<AuthProvider>().signOut();
+          if (context.mounted) context.go('/login');
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.dangerColor.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.logout_rounded,
+                color: AppTheme.dangerColor, size: 20),
+            const SizedBox(width: 10),
+            const Text(
+              'CERRAR SESIÓN',
+              style: TextStyle(
+                fontFamily: 'Rajdhani',
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.dangerColor,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

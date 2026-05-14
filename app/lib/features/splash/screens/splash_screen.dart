@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vehicle_predictive_maintenance_app/app/theme/app_theme.dart';
 
@@ -94,7 +95,7 @@ class _SplashScreenState extends State<SplashScreen>
                       height: 200,
                       child: Stack(
                         children: [
-                          // Círculo exterior con glow
+                          // Anillo con glow
                           Positioned.fill(
                             child: CustomPaint(
                               painter: _ScanRingPainter(
@@ -103,7 +104,7 @@ class _SplashScreenState extends State<SplashScreen>
                               ),
                             ),
                           ),
-                          // Icono del auto
+                          // Logo Vera SVG
                           Center(
                             child: Container(
                               width: 100,
@@ -111,12 +112,14 @@ class _SplashScreenState extends State<SplashScreen>
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: AppTheme.surface,
-                                boxShadow: AppTheme.glowShadow(AppTheme.primaryColor),
+                                boxShadow: AppTheme.glowShadow(
+                                    AppTheme.primaryColor),
                               ),
-                              child: const Icon(
-                                Icons.directions_car,
-                                size: 52,
-                                color: AppTheme.primaryColor,
+                              child: ClipOval(
+                                child: SvgPicture.asset(
+                                  'assets/images/vera_logo.svg',
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                           ),
@@ -159,26 +162,26 @@ class _SplashScreenState extends State<SplashScreen>
 
                   // Nombre de la app
                   Text(
-                    'VEHICLE',
+                    'VERA',
                     style: TextStyle(
                       fontFamily: 'Rajdhani',
-                      fontSize: 38,
+                      fontSize: 52,
                       fontWeight: FontWeight.w800,
                       color: AppTheme.textPrimary,
-                      letterSpacing: 8,
+                      letterSpacing: 12,
                     ),
                   ),
                   ShaderMask(
                     shaderCallback: (bounds) => AppTheme.primaryGradient
                         .createShader(bounds),
                     child: Text(
-                      'DIAGNOSTICS',
+                      'MANTENIMIENTO PREDICTIVO',
                       style: TextStyle(
                         fontFamily: 'Rajdhani',
-                        fontSize: 22,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
-                        letterSpacing: 6,
+                        letterSpacing: 3,
                       ),
                     ),
                   ),
@@ -186,7 +189,7 @@ class _SplashScreenState extends State<SplashScreen>
                   const SizedBox(height: 12),
 
                   Text(
-                    'Mantenimiento Predictivo con IA',
+                    'Diagnóstico vehicular con IA',
                     style: TextStyle(
                       fontSize: 13,
                       color: AppTheme.textSecondary,

@@ -2,57 +2,72 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:vehicle_predictive_maintenance_app/app/theme/app_theme.dart';
 import 'package:vehicle_predictive_maintenance_app/app/widgets/custom_card.dart';
-import 'package:vehicle_predictive_maintenance_app/services/history_service.dart';
+import 'package:vehicle_predictive_maintenance_app/core/providers/history_provider.dart';
 
-class HistoryScreen extends StatefulWidget {
+class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
 
-  @override
-  State<HistoryScreen> createState() => _HistoryScreenState();
-}
+  List<_DailyTrendPoint> _buildTrend(List<Map<String, dynamic>> records) {
+    final dailyHealth = <String, List<double>>{};
 
-class _HistoryScreenState extends State<HistoryScreen> {
-  final HistoryService _historyService = HistoryService();
-  List<Map<String, dynamic>> _records = [];
-  bool _loading = true;
+    for (final record in records) {
+      final timestamp =
+          DateTime.tryParse(record['timestamp']?.toString() ?? '');
+      if (timestamp == null) {
+        continue;
+      }
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
+      final key = DateFormat('yyyy-MM-dd').format(timestamp);
+      final probability = ((record['probability'] ?? 0.0) as num).toDouble();
+      final health =
+          ((record['health'] as num?)?.toDouble() ?? ((1 - probability) * 100))
+              .clamp(0, 100)
+              .toDouble();
 
-  Future<void> _load() async {
-    final items = await _historyService.loadHistory();
-    if (!mounted) return;
-    setState(() {
-      _records = items;
-      _loading = false;
-    });
+      dailyHealth.putIfAbsent(key, () => <double>[]).add(health);
+    }
+
+    final points = dailyHealth.entries.map((entry) {
+      final values = entry.value;
+      final average = values.reduce((a, b) => a + b) / values.length;
+      final date = DateTime.parse(entry.key);
+      return _DailyTrendPoint(
+        date: date,
+        label: DateFormat('dd/MM').format(date),
+        health: average,
+      );
+    }).toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+
+    return points.length > 7 ? points.sublist(points.length - 7) : points;
   }
 
   @override
   Widget build(BuildContext context) {
-    final trend = _records.take(7).toList().reversed.toList();
-    final spots = trend.asMap().entries.map((e) {
-      final p = ((e.value['probability'] ?? 0.0) as num).toDouble();
-      return FlSpot(e.key.toDouble(), ((1 - p) * 100).clamp(0, 100));
-    }).toList();
+    final historyProvider = context.watch<HistoryProvider>();
+    final records = historyProvider.records;
+    final trend = _buildTrend(records);
+    final spots = trend
+        .asMap()
+        .entries
+        .map((entry) => FlSpot(entry.key.toDouble(), entry.value.health))
+        .toList();
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
-          child: _HistoryHeader(count: _records.length),
+          child: _HistoryHeader(count: records.length),
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               // Gráfico de tendencia
-              if (_records.isNotEmpty) ...[
+              if (records.isNotEmpty) ...[
                 CustomCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,7 +77,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                              color:
+                                  AppTheme.primaryColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: const Icon(Icons.trending_up_rounded,
@@ -91,7 +107,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               show: true,
                               drawVerticalLine: false,
                               getDrawingHorizontalLine: (_) => FlLine(
-                                color: AppTheme.borderColor.withValues(alpha: 0.5),
+                                color:
+                                    AppTheme.borderColor.withValues(alpha: 0.5),
                                 strokeWidth: 1,
                               ),
                             ),
@@ -114,8 +131,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   sideTitles: SideTitles(showTitles: false)),
                               topTitles: const AxisTitles(
                                   sideTitles: SideTitles(showTitles: false)),
-                              bottomTitles: const AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false)),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 28,
+                                  getTitlesWidget: (value, _) {
+                                    final index = value.toInt();
+                                    if (index < 0 || index >= trend.length) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        trend[index].label,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
                             ),
                             minY: 0,
                             maxY: 100,
@@ -141,7 +178,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   show: true,
                                   gradient: LinearGradient(
                                     colors: [
-                                      AppTheme.primaryColor.withValues(alpha: 0.2),
+                                      AppTheme.primaryColor
+                                          .withValues(alpha: 0.2),
                                       Colors.transparent,
                                     ],
                                     begin: Alignment.topCenter,
@@ -171,7 +209,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               const SizedBox(height: 12),
 
-              if (_loading)
+              if (historyProvider.isLoading)
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.all(40),
@@ -181,10 +219,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                   ),
                 )
-              else if (_records.isEmpty)
+              else if (records.isEmpty)
                 _EmptyState()
               else
-                ..._records.asMap().entries.map((entry) {
+                ...records.asMap().entries.map((entry) {
                   return _HistoryCard(
                     record: entry.value,
                     index: entry.key,
@@ -196,6 +234,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ],
     );
   }
+}
+
+class _DailyTrendPoint {
+  final DateTime date;
+  final String label;
+  final double health;
+
+  const _DailyTrendPoint({
+    required this.date,
+    required this.label,
+    required this.health,
+  });
 }
 
 class _HistoryHeader extends StatelessWidget {
@@ -236,8 +286,7 @@ class _HistoryHeader extends StatelessWidget {
               ),
               Text(
                 'Diagnósticos anteriores',
-                style: TextStyle(
-                    fontSize: 12, color: AppTheme.textSecondary),
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
               ),
             ],
           ),

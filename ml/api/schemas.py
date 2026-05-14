@@ -35,3 +35,35 @@ class HealthResponse(BaseModel):
     status: str
     model: str
     dataset: str
+
+
+class ObdLiveResponse(BaseModel):
+    """
+    Esquema para una lectura OBD-II en vivo o simulada desde la API.
+    """
+    timestamp: str
+    rpm: float
+    engine_temp: float
+    speed: float
+    engine_load: float
+    voltage: float
+    maf: float
+    brake_pad_thickness: float
+    tire_pressure: float
+    maintenance_type: str
+
+
+class HistoryItem(BaseModel):
+    """
+    Registro resumido de una predicción realizada por la API.
+    """
+    timestamp: str
+    anomaly: bool
+    probability: float
+
+
+class HistoryResponse(BaseModel):
+    """
+    Respuesta del historial de predicciones recientes.
+    """
+    items: List[HistoryItem]

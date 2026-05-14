@@ -64,4 +64,11 @@ class AppProvider with ChangeNotifier {
     await _save();
     notifyListeners();
   }
+
+  Future<void> fallbackToDemo() async {
+    _appMode = AppMode.demo;
+    _isConnected = false;
+    await _save();
+    notifyListeners();
+  }
 }

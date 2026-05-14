@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:vehicle_predictive_maintenance_app/app/theme/app_theme.dart';
@@ -279,7 +280,6 @@ class _AuthForm extends StatelessWidget {
     );
   }
 }
-
 // ── Email verification ─────────────────────────────────────────────────────────
 
 class _VerificationView extends StatelessWidget {
@@ -343,41 +343,36 @@ class _Logo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
+        SvgPicture.asset(
+          'assets/images/vera_logo.svg',
           width: 44,
           height: 44,
-          decoration: BoxDecoration(
-            gradient: AppTheme.primaryGradient,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(Icons.directions_car_rounded,
-              color: Colors.black, size: 24),
         ),
         const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'VEHICLE',
+              'VERA',
               style: TextStyle(
                 fontFamily: 'Rajdhani',
-                fontSize: 18,
+                fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: AppTheme.textPrimary,
-                letterSpacing: 3,
+                letterSpacing: 4,
               ),
             ),
             ShaderMask(
               shaderCallback: (b) =>
                   AppTheme.primaryGradient.createShader(b),
               child: const Text(
-                'DIAGNOSTICS AI',
+                'MANTENIMIENTO PREDICTIVO',
                 style: TextStyle(
                   fontFamily: 'Rajdhani',
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
-                  letterSpacing: 3,
+                  letterSpacing: 2,
                 ),
               ),
             ),

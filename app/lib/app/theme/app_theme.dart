@@ -2,28 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Paleta de colores principal
-  static const Color background = Color(0xFF080C18);
-  static const Color backgroundSecondary = Color(0xFF0D1220);
-  static const Color surface = Color(0xFF111827);
-  static const Color surfaceElevated = Color(0xFF161E2E);
-  static const Color primaryColor = Color(0xFF00D4FF);
-  static const Color primaryDim = Color(0xFF0099BB);
-  static const Color successColor = Color(0xFF00E676);
+  // Paleta Vera: negro profundo + verde #03F263
+  static const Color background = Color(0xFF000000);
+  static const Color backgroundSecondary = Color(0xFF0A0A0A);
+  static const Color surface = Color(0xFF111111);
+  static const Color surfaceElevated = Color(0xFF1A1A1A);
+  static const Color primaryColor = Color(0xFF03F263);
+  static const Color primaryDim = Color(0xFF02B04A);
+  static const Color successColor = Color(0xFF03F263);
   static const Color warningColor = Color(0xFFFFAB00);
   static const Color dangerColor = Color(0xFFFF1744);
-  static const Color textPrimary = Color(0xFFE8EAF0);
-  static const Color textSecondary = Color(0xFF8892A4);
-  static const Color borderColor = Color(0xFF1E2A3A);
+  static const Color textPrimary = Color(0xFFFFFFFF);
+  static const Color textSecondary = Color(0xFF777777);
+  static const Color borderColor = Color(0xFF222222);
 
   // Gradientes reutilizables
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF00D4FF), Color(0xFF0070FF)],
+    colors: [Color(0xFF03F263), Color(0xFF01D855)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   static const LinearGradient successGradient = LinearGradient(
-    colors: [Color(0xFF00E676), Color(0xFF00BCD4)],
+    colors: [Color(0xFF03F263), Color(0xFF02B04A)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -38,7 +38,7 @@ class AppTheme {
     end: Alignment.bottomRight,
   );
   static const LinearGradient backgroundGradient = LinearGradient(
-    colors: [Color(0xFF080C18), Color(0xFF0D1525)],
+    colors: [Color(0xFF000000), Color(0xFF0A0A0A)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
