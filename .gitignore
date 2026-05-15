@@ -11,4 +11,4 @@ ml/.venv/
 ml/.venv*/
 ml/data/
 
-**/build/
+**/build/.claude/
