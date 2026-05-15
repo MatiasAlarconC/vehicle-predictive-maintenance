@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Paleta Vera: negro profundo + verde #03F263
-  static const Color background = Color(0xFF000000);
-  static const Color backgroundSecondary = Color(0xFF0A0A0A);
-  static const Color surface = Color(0xFF111111);
-  static const Color surfaceElevated = Color(0xFF1A1A1A);
-  static const Color primaryColor = Color(0xFF03F263);
-  static const Color primaryDim = Color(0xFF02B04A);
-  static const Color successColor = Color(0xFF03F263);
-  static const Color warningColor = Color(0xFFFFAB00);
-  static const Color dangerColor = Color(0xFFFF1744);
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFF777777);
-  static const Color borderColor = Color(0xFF222222);
+  // ── Monochrome tokens — black bg, white UI, green only for live/CTA ──────
+  static const Color background       = Color(0xFF000000);
+  static const Color backgroundSecondary = Color(0xFF060606);
+  static const Color surface          = Color(0xFF0C0C0C);
+  static const Color surfaceElevated  = Color(0xFF111111);
+  static const Color borderColor      = Color(0x14FFFFFF); // white 8%
+  static const Color borderStrong     = Color(0x29FFFFFF); // white 16%
+  static const Color primaryColor     = Color(0xFF03F263); // green — CTA + live only
+  static const Color primaryDim       = Color(0xFF00C24E);
+  static const Color successColor     = Color(0xFF03F263);
+  static const Color warningColor     = Color(0xFFFFB020);
+  static const Color dangerColor      = Color(0xFFFF3D5C);
+  static const Color textPrimary      = Color(0xFFFFFFFF); // pure white
+  static const Color textSecondary    = Color(0xFF888888); // mid gray
+  static const Color textFaint        = Color(0xFF444444); // dark gray
 
   // Gradientes reutilizables
   static const LinearGradient primaryGradient = LinearGradient(
@@ -44,31 +46,16 @@ class AppTheme {
   );
 
   // Sombras con glow
+  // Minimal shadow — only for primary CTA button
   static List<BoxShadow> glowShadow(Color color, {double intensity = 0.35}) => [
         BoxShadow(
-          color: color.withValues(alpha: intensity),
-          blurRadius: 20,
-          spreadRadius: -4,
-        ),
-        BoxShadow(
-          color: color.withValues(alpha: intensity * 0.4),
-          blurRadius: 40,
-          spreadRadius: -8,
+          color: color.withValues(alpha: intensity * 0.6),
+          blurRadius: 16,
+          spreadRadius: -6,
         ),
       ];
 
-  static List<BoxShadow> get cardShadow => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.4),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
-        ),
-        BoxShadow(
-          color: primaryColor.withValues(alpha: 0.05),
-          blurRadius: 30,
-          spreadRadius: 0,
-        ),
-      ];
+  static List<BoxShadow> get cardShadow => [];
 
   static final ThemeData darkTheme = ThemeData(
     useMaterial3: true,

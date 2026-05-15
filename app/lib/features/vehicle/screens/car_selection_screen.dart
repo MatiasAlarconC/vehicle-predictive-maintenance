@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:vehicle_predictive_maintenance_app/app/theme/app_theme.dart';
+import 'package:vehicle_predictive_maintenance_app/app/widgets/vera_components.dart';
 import 'package:vehicle_predictive_maintenance_app/core/models/user_vehicle.dart';
 import 'package:vehicle_predictive_maintenance_app/core/providers/auth_provider.dart';
 import 'package:vehicle_predictive_maintenance_app/core/providers/vehicle_provider.dart';
@@ -9,7 +14,6 @@ import 'package:vehicle_predictive_maintenance_app/services/car_image_service.da
 
 class CarSelectionScreen extends StatefulWidget {
   const CarSelectionScreen({super.key});
-
   @override
   State<CarSelectionScreen> createState() => _CarSelectionScreenState();
 }
@@ -20,6 +24,9 @@ class _CarSelectionScreenState extends State<CarSelectionScreen> {
   int _selectedYear = DateTime.now().year - 2;
   VehicleColor _selectedColor = VehicleColor.midnightBlack;
   bool _saving = false;
+  bool _isCustomMake = false;
+  bool _isCustomModel = false;
+  String? _pickedImagePath;
 
   final _makeCtrl = TextEditingController();
   final _makeFocus = FocusNode();
@@ -50,12 +57,12 @@ class _CarSelectionScreenState extends State<CarSelectionScreen> {
 
   @override
   void dispose() {
-    _makeCtrl.dispose();
-    _makeFocus.dispose();
-    _modelCtrl.dispose();
-    _modelFocus.dispose();
+    _makeCtrl.dispose(); _makeFocus.dispose();
+    _modelCtrl.dispose(); _modelFocus.dispose();
     super.dispose();
   }
+
+  bool get _hasSelection => _selectedMake != null && _selectedModel != null;
 
   void _onMakeChanged(String q) {
     final query = q.trim().toLowerCase();
@@ -64,15 +71,14 @@ class _CarSelectionScreenState extends State<CarSelectionScreen> {
         _filteredMakes = [];
         _showMakeList = false;
       } else {
-        _filteredMakes = kCarCatalog
-            .where((m) => m.name.toLowerCase().contains(query))
-            .toList();
-        _showMakeList = true;
+        _filteredMakes = kCarCatalog.where((m) => m.name.toLowerCase().contains(query)).toList();
+        _showMakeList = true; // always show when text present (custom option visible)
       }
-      if (_selectedMake != null &&
-          _selectedMake!.name.toLowerCase() != query) {
+      if (_selectedMake != null && _selectedMake!.name.toLowerCase() != query) {
         _selectedMake = null;
+        _isCustomMake = false;
         _selectedModel = null;
+        _isCustomModel = false;
         _modelCtrl.clear();
         _filteredModels = [];
         _showModelList = false;
@@ -80,13 +86,34 @@ class _CarSelectionScreenState extends State<CarSelectionScreen> {
     });
   }
 
+  void _onModelChanged(String q) {
+    final query = q.trim().toLowerCase();
+    setState(() {
+      if (query.isEmpty || _selectedMake == null) {
+        _filteredModels = [];
+        _showModelList = false;
+      } else {
+        _filteredModels = _selectedMake!.models
+            .where((m) => m.name.toLowerCase().contains(query)).toList();
+        // Show list if matches OR custom make (so user can type a custom model)
+        _showModelList = _filteredModels.isNotEmpty || _isCustomMake || true;
+      }
+      if (_selectedModel != null && _selectedModel!.name.toLowerCase() != query) {
+        _selectedModel = null;
+        _isCustomModel = false;
+      }
+    });
+  }
+
   void _selectMake(CarMake make) {
     setState(() {
       _selectedMake = make;
-      _selectedModel = null;
       _makeCtrl.text = make.name;
-      _filteredMakes = [];
+      _isCustomMake = false;
       _showMakeList = false;
+      _filteredMakes = [];
+      _selectedModel = null;
+      _isCustomModel = false;
       _modelCtrl.clear();
       _filteredModels = [];
       _showModelList = false;
@@ -94,311 +121,619 @@ class _CarSelectionScreenState extends State<CarSelectionScreen> {
     _makeFocus.unfocus();
   }
 
-  void _onModelChanged(String q) {
-    if (_selectedMake == null) return;
-    final query = q.trim().toLowerCase();
-    setState(() {
-      if (query.isEmpty) {
-        _filteredModels = [];
-        _showModelList = false;
-      } else {
-        _filteredModels = _selectedMake!.models
-            .where((m) => m.name.toLowerCase().contains(query))
-            .toList();
-        _showModelList = true;
-      }
-      if (_selectedModel != null &&
-          _selectedModel!.name.toLowerCase() != query) {
-        _selectedModel = null;
-      }
-    });
-  }
-
   void _selectModel(CarModelEntry model) {
     setState(() {
       _selectedModel = model;
       _modelCtrl.text = model.name;
-      _filteredModels = [];
+      _isCustomModel = false;
       _showModelList = false;
+      _filteredModels = [];
     });
     _modelFocus.unfocus();
   }
 
+  void _selectCustomMake(String name) {
+    if (name.isEmpty) return;
+    final synth = CarMake(name: name, models: []);
+    setState(() {
+      _selectedMake = synth;
+      _makeCtrl.text = name;
+      _isCustomMake = true;
+      _showMakeList = false;
+      _filteredMakes = [];
+      _selectedModel = null;
+      _isCustomModel = false;
+      _modelCtrl.clear();
+      _filteredModels = [];
+      _showModelList = false;
+    });
+    _makeFocus.unfocus();
+  }
+
+  void _selectCustomModel(String name) {
+    if (name.isEmpty) return;
+    final synth = CarModelEntry(name, CarBodyType.sedan);
+    setState(() {
+      _selectedModel = synth;
+      _modelCtrl.text = name;
+      _isCustomModel = true;
+      _showModelList = false;
+      _filteredModels = [];
+    });
+    _modelFocus.unfocus();
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (file == null || !mounted) return;
+    final appDir = await getApplicationDocumentsDirectory();
+    final fileName = 'car_img_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final saved = await File(file.path).copy('${appDir.path}/$fileName');
+    if (mounted) setState(() => _pickedImagePath = saved.path);
+  }
+
   Future<void> _confirm() async {
-    if (_selectedMake == null || _selectedModel == null) return;
+    if (!_hasSelection || _saving) return;
     setState(() => _saving = true);
-    final vehicle = UserVehicle(
-      make: _selectedMake!.name,
-      model: _selectedModel!.name,
-      year: _selectedYear,
-      color: _selectedColor,
-      bodyType: _selectedModel!.bodyType,
-    );
-    await context.read<VehicleProvider>().setVehicle(vehicle);
-    if (!mounted) return;
-    context.go('/dashboard');
+    try {
+      final vehicle = UserVehicle(
+        make: _selectedMake!.name,
+        model: _selectedModel!.name,
+        year: _selectedYear,
+        color: _selectedColor,
+        bodyType: _selectedModel!.bodyType,
+        customImagePath: _pickedImagePath,
+      );
+      await context.read<VehicleProvider>().setVehicle(vehicle);
+      if (mounted) context.go('/dashboard');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al guardar: $e', style: vMono(color: Colors.white, size: 12)),
+          backgroundColor: AppTheme.dangerColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final firstName = context.read<AuthProvider>().firstName;
-    final hasSelection = _selectedMake != null && _selectedModel != null;
-
+    final firstName = context.watch<AuthProvider>().firstName;
+    final vehicleProvider = context.watch<VehicleProvider>();
+    final hasVehicle = vehicleProvider.hasVehicle;
+    final step = !_hasSelection ? 0 : 3;
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Hola, $firstName',
-                      style: const TextStyle(
-                          fontSize: 14, color: AppTheme.textSecondary)),
-                  const SizedBox(height: 4),
-                  const Text('¿Cuál es tu\nvehículo?',
-                      style: TextStyle(
-                        fontFamily: 'Rajdhani',
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.textPrimary,
-                        height: 1.1,
-                      )),
+        child: Stack(children: [
+          // faint grid bg
+          Positioned.fill(child: CustomPaint(painter: _VehicleBgPainter())),
+          Column(children: [
+            // ── Top bar ─────────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+              decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppTheme.borderColor))),
+              child: Row(children: [
+                // Back button (only when accessed from dashboard)
+                if (hasVehicle) ...[
+                  GestureDetector(
+                    onTap: () => context.go('/dashboard'),
+                    child: const Icon(Icons.arrow_back_ios_new_rounded,
+                        size: 14, color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(width: 10),
                 ],
-              ),
+                const VeraMark(size: 14),
+                const SizedBox(width: 8),
+                Text('VERA', style: vMono(color: AppTheme.textPrimary, size: 9.5, letterSpacing: 0.18)),
+                Text(' · configuración', style: vMono(size: 9.5, letterSpacing: 0.18)),
+                const Spacer(),
+                Text('stage 04 · vehículo', style: vMono(size: 9.5, letterSpacing: 0.18)),
+              ]),
             ),
-            const SizedBox(height: 20),
-            _CarPreview(
-              color: _selectedColor,
-              bodyType: _selectedModel?.bodyType ?? CarBodyType.sedan,
-              make: _selectedMake?.name ?? '—',
-              model: _selectedModel?.name ?? '—',
-              year: _selectedYear,
-              hasSelection: hasSelection,
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SectionLabel('MARCA'),
-                    const SizedBox(height: 8),
-                    _SearchField(
-                      controller: _makeCtrl,
-                      focusNode: _makeFocus,
-                      hint: 'Escribe una marca (ej: Toyota, BMW...)',
-                      onChanged: _onMakeChanged,
-                      onClear: () {
-                        _makeCtrl.clear();
-                        _onMakeChanged('');
-                        setState(() {
-                          _selectedMake = null;
-                          _selectedModel = null;
-                          _modelCtrl.clear();
-                        });
-                      },
-                    ),
-                    if (_showMakeList && _filteredMakes.isNotEmpty)
-                      _DropdownList(
-                        items: _filteredMakes.map((m) => m.name).toList(),
-                        onSelect: (name) => _selectMake(
-                            kCarCatalog.firstWhere((m) => m.name == name)),
-                      ),
-                    if (_showMakeList && _filteredMakes.isEmpty)
-                      _EmptyList('No se encontró ninguna marca'),
 
-                    if (_selectedMake != null) ...[
-                      const SizedBox(height: 20),
-                      _SectionLabel('MODELO'),
-                      const SizedBox(height: 8),
-                      _SearchField(
-                        controller: _modelCtrl,
-                        focusNode: _modelFocus,
-                        hint: 'Escribe un modelo (ej: Corolla, X5...)',
-                        onChanged: _onModelChanged,
-                        onClear: () {
-                          _modelCtrl.clear();
-                          _onModelChanged('');
-                          setState(() => _selectedModel = null);
-                        },
-                      ),
-                      if (_showModelList && _filteredModels.isNotEmpty)
-                        _DropdownList(
-                          items: _filteredModels.map((m) => m.name).toList(),
-                          onSelect: (name) => _selectModel(
-                              _selectedMake!.models
-                                  .firstWhere((m) => m.name == name)),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    // ── Greeting ──────────────────────────────────────────
+                    Text(
+                      firstName.isNotEmpty ? 'hola, $firstName' : 'hola',
+                      style: vMono(color: AppTheme.primaryColor, size: 9.5, letterSpacing: 0.18),
+                    ),
+                    const SizedBox(height: 4),
+                    RichText(
+                      text: TextSpan(children: [
+                        TextSpan(
+                          text: hasVehicle ? 'Tu garage' : '¿Cuál es tu vehículo',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 26, fontWeight: FontWeight.w700,
+                            color: AppTheme.textPrimary, height: 1.0,
+                          ),
                         ),
-                      if (_showModelList && _filteredModels.isEmpty)
-                        _EmptyList('No se encontró ese modelo'),
+                        TextSpan(
+                          text: hasVehicle ? '_' : '?',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 26, fontWeight: FontWeight.w700,
+                            color: AppTheme.primaryColor, height: 1.0,
+                          ),
+                        ),
+                      ]),
+                    ),
+
+                    // ── Garage: show existing cars ─────────────────────────
+                    if (hasVehicle) ...[
+                      const SizedBox(height: 16),
+                      ...List.generate(vehicleProvider.garage.length, (i) {
+                        final v = vehicleProvider.garage[i];
+                        final isActive = i == vehicleProvider.activeIndex;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: GestureDetector(
+                            onTap: () {
+                              vehicleProvider.setActiveVehicle(i);
+                              context.go('/dashboard');
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: isActive ? AppTheme.primaryColor.withValues(alpha: 0.08) : AppTheme.surface,
+                                border: Border.all(
+                                  color: isActive ? AppTheme.primaryColor : AppTheme.borderColor,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(children: [
+                                Container(
+                                  width: 8, height: 8,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isActive ? AppTheme.primaryColor : AppTheme.borderColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(
+                                      '${v.make} ${v.model}',
+                                      style: vMono(size: 13, weight: FontWeight.w600, color: AppTheme.textPrimary),
+                                    ),
+                                    Text(
+                                      '${v.year} · ${v.color.label}',
+                                      style: vMono(size: 10, color: AppTheme.textFaint),
+                                    ),
+                                  ]),
+                                ),
+                                if (isActive)
+                                  Text('activo', style: vMono(size: 9.5, color: AppTheme.primaryColor))
+                                else
+                                  GestureDetector(
+                                    onTap: () => vehicleProvider.removeVehicle(i),
+                                    child: const Icon(Icons.close_rounded,
+                                        size: 16, color: AppTheme.textFaint),
+                                  ),
+                              ]),
+                            ),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 16),
+                      const VeraDivider(label: 'añadir otro vehículo'),
                     ],
 
-                    if (hasSelection) ...[
-                      const SizedBox(height: 20),
-                      Row(children: [
-                        _SectionLabel('AÑO'),
-                        const Spacer(),
-                        Text('$_selectedYear',
-                            style: const TextStyle(
-                              fontFamily: 'Rajdhani',
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.primaryColor,
-                            )),
-                      ]),
-                      const SizedBox(height: 6),
-                      SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          activeTrackColor: AppTheme.primaryColor,
-                          inactiveTrackColor:
-                              AppTheme.primaryColor.withValues(alpha: 0.15),
-                          thumbColor: AppTheme.primaryColor,
-                          overlayColor:
-                              AppTheme.primaryColor.withValues(alpha: 0.15),
-                          trackHeight: 3,
-                          thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 8),
-                        ),
-                        child: Slider(
-                          value: _selectedYear.toDouble(),
-                          min: 2000,
-                          max: DateTime.now().year.toDouble(),
-                          divisions: DateTime.now().year - 2000,
-                          onChanged: (v) =>
-                              setState(() => _selectedYear = v.round()),
-                        ),
+                    const SizedBox(height: 16),
+
+                    // ── Hero car zone ─────────────────────────────────────
+                    _VehicleHero(
+                      make: _selectedMake?.name,
+                      model: _selectedModel?.name,
+                      year: _hasSelection ? _selectedYear : null,
+                      color: _hasSelection ? _selectedColor : null,
+                      customImagePath: _pickedImagePath,
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── Config summary (when filled) ──────────────────────
+                    if (_hasSelection) ...[
+                      VeraFrame(
+                        id: 'cfg.vehicle',
+                        title: 'parámetros',
+                        status: const VeraTag(label: '4/4 ✓'),
+                        child: Column(children: [
+                          VeraDataLine(k: 'marca', v: _selectedMake!.name),
+                          VeraDataLine(k: 'modelo', v: _selectedModel!.name),
+                          VeraDataLine(k: 'año', v: '$_selectedYear'),
+                          VeraDataLine(k: 'color', v: _selectedColor.label),
+                        ]),
                       ),
-                      const SizedBox(height: 20),
-                      _SectionLabel('COLOR'),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: VehicleColor.values.map((c) {
-                          final sel = _selectedColor == c;
-                          return GestureDetector(
-                            onTap: () => setState(() => _selectedColor = c),
-                            child: Column(children: [
-                              AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: c.color,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: sel
-                                        ? AppTheme.primaryColor
-                                        : Colors.transparent,
-                                    width: 2.5,
+                      const SizedBox(height: 12),
+                    ],
+
+                    // ── Brand frame ───────────────────────────────────────
+                    VeraFrame(
+                      id: 'brand',
+                      title: 'select manufacturer',
+                      status: Text('${kCarCatalog.length} marcas', style: vMono(size: 9)),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        // Quick chips
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(children: [
+                            for (final brand in kCarCatalog.take(6))
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: GestureDetector(
+                                  onTap: () => _selectMake(brand),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: _selectedMake?.name == brand.name
+                                            ? AppTheme.primaryColor
+                                            : AppTheme.borderColor,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                      color: _selectedMake?.name == brand.name
+                                          ? AppTheme.primaryColor.withValues(alpha: 0.12)
+                                          : Colors.transparent,
+                                    ),
+                                    child: Text(
+                                      brand.name.toUpperCase(),
+                                      style: vMono(
+                                        size: 10.5,
+                                        weight: FontWeight.w600,
+                                        color: _selectedMake?.name == brand.name
+                                            ? AppTheme.primaryColor
+                                            : AppTheme.textSecondary,
+                                        letterSpacing: 0.08,
+                                      ),
+                                    ),
                                   ),
-                                  boxShadow: sel
-                                      ? [BoxShadow(
-                                          color: c.color.withValues(alpha: 0.5),
-                                          blurRadius: 10)]
-                                      : null,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(c.label.split(' ').first,
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    color: sel
-                                        ? AppTheme.primaryColor
-                                        : AppTheme.textSecondary,
-                                  )),
-                            ]),
-                          );
-                        }).toList(),
+                          ]),
+                        ),
+                        const SizedBox(height: 10),
+                        // Search field
+                        _VeraSearchField(
+                          id: 'MAR-01',
+                          hint: 'Escribe una marca…',
+                          controller: _makeCtrl,
+                          focusNode: _makeFocus,
+                          onChanged: _onMakeChanged,
+                        ),
+                        if (_showMakeList && _makeCtrl.text.trim().isNotEmpty) ...
+                          [
+                            if (_filteredMakes.isNotEmpty)
+                              _DropdownList(
+                                items: _filteredMakes.map((m) => m.name).toList(),
+                                onSelect: (name) => _selectMake(kCarCatalog.firstWhere((m) => m.name == name)),
+                              ),
+                            if (!kCarCatalog.any((m) => m.name.toLowerCase() == _makeCtrl.text.trim().toLowerCase()))
+                              _CustomOptionRow(
+                                text: _makeCtrl.text.trim(),
+                                label: 'marca',
+                                onTap: () => _selectCustomMake(_makeCtrl.text.trim()),
+                              ),
+                          ],
+                      ]),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ── Model frame (only when make selected) ─────────────
+                    if (_selectedMake != null)
+                      VeraFrame(
+                        id: 'model',
+                        title: 'select model',
+                        status: Text('${_selectedMake!.models.length} modelos', style: vMono(size: 9)),
+                        child: Column(children: [
+                          _VeraSearchField(
+                            id: 'MOD-01',
+                            hint: 'Buscar modelo…',
+                            controller: _modelCtrl,
+                            focusNode: _modelFocus,
+                            onChanged: _onModelChanged,
+                          ),
+                          if (_showModelList && _modelCtrl.text.trim().isNotEmpty) ...
+                            [
+                              if (_filteredModels.isNotEmpty)
+                                _DropdownList(
+                                  items: _filteredModels.map((m) => m.name).toList(),
+                                  onSelect: (name) => _selectModel(
+                                    _selectedMake!.models.firstWhere((m) => m.name == name)),
+                                ),
+                              if (!(_selectedMake?.models ?? []).any((m) => m.name.toLowerCase() == _modelCtrl.text.trim().toLowerCase()))
+                                _CustomOptionRow(
+                                  text: _modelCtrl.text.trim(),
+                                  label: 'modelo',
+                                  onTap: () => _selectCustomModel(_modelCtrl.text.trim()),
+                                ),
+                            ],
+                        ]),
+                      ),
+
+                    // ── Year slider (when both selected) ─────────────────
+                    if (_hasSelection) ...[
+                      const SizedBox(height: 12),
+                      VeraFrame(
+                        id: 'year',
+                        title: 'año de fabricación',
+                        status: Text(
+                          '$_selectedYear',
+                          style: vMono(color: AppTheme.primaryColor, size: 13, weight: FontWeight.w700),
+                        ),
+                        child: _YearTrack(
+                          value: _selectedYear,
+                          min: 2000,
+                          max: DateTime.now().year + 1,
+                          onChanged: (v) => setState(() => _selectedYear = v),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // ── Color picker ────────────────────────────────────
+                      VeraFrame(
+                        id: 'color',
+                        title: 'color exterior',
+                        status: Text(_selectedColor.label, style: vMono(size: 9)),
+                        child: _ColorRow(
+                          selected: _selectedColor,
+                          onSelect: (c) => setState(() => _selectedColor = c),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // ── Image picker (optional) ─────────────────────────
+                      VeraFrame(
+                        id: 'image',
+                        title: 'imagen del vehículo',
+                        status: Text(
+                          _pickedImagePath != null ? '✓ personalizada' : 'CDN auto',
+                          style: vMono(size: 9, color: _pickedImagePath != null ? AppTheme.primaryColor : AppTheme.textFaint),
+                        ),
+                        child: Column(children: [
+                          if (_pickedImagePath != null) ...[  
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.file(
+                                File(_pickedImagePath!),
+                                height: 100,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          Row(children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: _pickImage,
+                                child: Container(
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: AppTheme.borderColor),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                    const Icon(Icons.photo_library_outlined,
+                                        color: AppTheme.textSecondary, size: 14),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _pickedImagePath != null ? 'cambiar imagen' : 'seleccionar imagen',
+                                      style: vMono(size: 11, color: AppTheme.textSecondary),
+                                    ),
+                                  ]),
+                                ),
+                              ),
+                            ),
+                            if (_pickedImagePath != null) ...[  
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => setState(() => _pickedImagePath = null),
+                                child: Container(
+                                  height: 38, width: 38,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: AppTheme.borderColor),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Icon(Icons.close_rounded,
+                                      color: AppTheme.textFaint, size: 14),
+                                ),
+                              ),
+                            ],
+                          ]),
+                        ]),
                       ),
                     ],
 
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: GestureDetector(
-                        onTap: !hasSelection || _saving ? null : _confirm,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          decoration: BoxDecoration(
-                            gradient: hasSelection
-                                ? AppTheme.primaryGradient
-                                : null,
-                            color: !hasSelection ? AppTheme.surface : null,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: hasSelection
-                                ? AppTheme.glowShadow(AppTheme.primaryColor,
-                                    intensity: 0.3)
-                                : null,
-                          ),
-                          child: Center(
-                            child: _saving
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.black))
-                                : Text('CONFIRMAR VEHÍCULO',
-                                    style: TextStyle(
-                                      fontFamily: 'Rajdhani',
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w800,
-                                      color: hasSelection
-                                          ? Colors.black
-                                          : AppTheme.textSecondary,
-                                      letterSpacing: 2,
-                                    )),
-                          ),
-                        ),
-                      ),
+                    const SizedBox(height: 20),
+
+                    // ── Confirm button ────────────────────────────────────
+                    VeraButton(
+                      label: 'CONFIRMAR VEHÍCULO',
+                      disabled: !_hasSelection,
+                      loading: _saving,
+                      onTap: _confirm,
                     ),
-                    const SizedBox(height: 40),
-                  ],
+
+                    const SizedBox(height: 16),
+
+                    // ── Step indicator ────────────────────────────────────
+                    _ConfigStepper(step: step),
+                  ]),
                 ),
               ),
             ),
-          ],
-        ),
+          ]),
+        ]),
       ),
     );
   }
 }
 
-// ── Componentes ────────────────────────────────────────────────────────────────
+// ─── Vehicle hero with corner brackets & annotations ─────────────────────────
 
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
+class _VehicleHero extends StatelessWidget {
+  final String? make;
+  final String? model;
+  final int? year;
+  final VehicleColor? color;
+  final String? customImagePath;
+
+  const _VehicleHero({this.make, this.model, this.year, this.color, this.customImagePath});
+
+  bool get _filled => make != null && model != null;
+
   @override
-  Widget build(BuildContext context) => Text(text,
-      style: const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        color: AppTheme.textSecondary,
-        letterSpacing: 2,
-      ));
+  Widget build(BuildContext context) {
+    final imgUrl = _filled && year != null && customImagePath == null
+        ? CarImageService.buildUrl(make: make!, model: model!, year: year!)
+        : null;
+
+    return VeraCornerBrackets(
+      color: AppTheme.primaryColor.withValues(alpha: 0.5),
+      size: 20,
+      child: Container(
+        height: 190,
+        decoration: BoxDecoration(
+          color: AppTheme.surface.withValues(alpha: 0.6),
+          border: Border.all(color: AppTheme.borderColor),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Stack(children: [
+          // Car image or silhouette
+          Center(
+            child: _filled
+                ? (customImagePath != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Image.file(
+                          File(customImagePath!),
+                          height: 140,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const VeraCarSvg(width: 180),
+                        ),
+                      )
+                    : imgUrl != null
+                        ? Image.network(
+                            imgUrl,
+                            height: 140,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) {
+                              final fallback = CarImageService.buildBrandFallbackUrl(make: make!, year: year!);
+                              if (fallback != null) {
+                                return Image.network(
+                                  fallback,
+                                  height: 140,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => const VeraCarSvg(width: 180),
+                                );
+                              }
+                              return const VeraCarSvg(width: 180);
+                            },
+                          )
+                        : const VeraCarSvg(width: 180))
+                : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const VeraCarSvg(width: 150),
+                    const SizedBox(height: 8),
+                    Text('aún sin vehículo',
+                        style: vMono(size: 10, letterSpacing: 0.2)),
+                  ]),
+          ),
+
+          // Annotation markers (when filled)
+          if (_filled) ...[
+            _Annotation(label: 'marca', value: make!, side: false, y: 20),
+            _Annotation(label: 'modelo', value: model!, side: true, y: 20),
+            if (year != null)
+              _Annotation(label: 'año', value: '$year', side: false, y: 75),
+            if (color != null)
+              _Annotation(label: 'color', value: color!.label, side: true, y: 75),
+          ],
+
+          // HUD labels
+          Positioned(
+            top: 8, left: 10,
+            child: Text(
+              _filled ? 'pre-set · ${model ?? ''}' : 'select model',
+              style: vMono(size: 8.5, letterSpacing: 0.16),
+            ),
+          ),
+          Positioned(
+            bottom: 8, right: 10,
+            child: Text(
+              'VEH-PVW-${_filled ? '01' : '00'}',
+              style: vMono(size: 8.5, letterSpacing: 0.16),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
-class _SearchField extends StatelessWidget {
+class _Annotation extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool side; // false=left, true=right
+  final double y;
+
+  const _Annotation({required this.label, required this.value, required this.side, required this.y});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: y,
+      left: side ? null : 8,
+      right: side ? 8 : null,
+      child: Column(
+        crossAxisAlignment: side ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            if (!side) ...[
+              Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: AppTheme.primaryColor)),
+              const SizedBox(width: 4),
+            ],
+            Text(label, style: vMono(size: 8, letterSpacing: 0.18)),
+            if (side) ...[
+              const SizedBox(width: 4),
+              Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: AppTheme.primaryColor)),
+            ],
+          ]),
+          Text(value, style: vMono(size: 11, weight: FontWeight.w700, color: AppTheme.primaryColor, letterSpacing: 0.06)),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Search field ─────────────────────────────────────────────────────────────
+
+class _VeraSearchField extends StatelessWidget {
+  final String id;
+  final String hint;
   final TextEditingController controller;
   final FocusNode focusNode;
-  final String hint;
   final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
 
-  const _SearchField({
+  const _VeraSearchField({
+    required this.id,
+    required this.hint,
     required this.controller,
     required this.focusNode,
-    required this.hint,
     required this.onChanged,
-    required this.onClear,
   });
 
   @override
@@ -407,37 +742,39 @@ class _SearchField extends StatelessWidget {
       controller: controller,
       focusNode: focusNode,
       onChanged: onChanged,
-      style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+      style: vMono(size: 12, weight: FontWeight.w500, color: AppTheme.textPrimary),
+      cursorColor: AppTheme.primaryColor,
       decoration: InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         hintText: hint,
-        hintStyle:
-            const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
-        prefixIcon: const Icon(Icons.search_rounded,
-            color: AppTheme.textSecondary, size: 20),
+        hintStyle: vMono(size: 12, color: AppTheme.textFaint),
+        prefixIcon: const Padding(
+          padding: EdgeInsets.only(left: 12, right: 8),
+          child: Icon(Icons.search_rounded, color: AppTheme.textFaint, size: 16),
+        ),
+        prefixIconConstraints: const BoxConstraints(),
         suffixIcon: controller.text.isNotEmpty
             ? GestureDetector(
-                onTap: onClear,
-                child: const Icon(Icons.close_rounded,
-                    color: AppTheme.textSecondary, size: 18))
+                onTap: () { controller.clear(); onChanged(''); },
+                child: const Padding(
+                  padding: EdgeInsets.only(right: 12),
+                  child: Icon(Icons.close_rounded, color: AppTheme.textFaint, size: 16),
+                ),
+              )
             : null,
+        suffixIconConstraints: const BoxConstraints(),
         filled: true,
-        fillColor: AppTheme.surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppTheme.borderColor)),
-        enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppTheme.borderColor)),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide:
-                const BorderSide(color: AppTheme.primaryColor, width: 1.5)),
+        fillColor: AppTheme.background,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: AppTheme.borderColor)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: AppTheme.borderColor)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: AppTheme.primaryColor)),
       ),
     );
   }
 }
+
+// ─── Dropdown list ────────────────────────────────────────────────────────────
 
 class _DropdownList extends StatelessWidget {
   final List<String> items;
@@ -449,353 +786,235 @@ class _DropdownList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(top: 4),
-      constraints: const BoxConstraints(maxHeight: 220),
+      constraints: const BoxConstraints(maxHeight: 200),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        color: AppTheme.surfaceElevated,
         border: Border.all(color: AppTheme.borderColor),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 4))
-        ],
+        borderRadius: BorderRadius.circular(4),
       ),
-      child: ListView.builder(
+      child: ListView.separated(
         shrinkWrap: true,
-        padding: EdgeInsets.zero,
         itemCount: items.length,
-        itemBuilder: (_, i) {
-          final isLast = i == items.length - 1;
-          return GestureDetector(
-            onTap: () => onSelect(items[i]),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-              decoration: BoxDecoration(
-                border: isLast
-                    ? null
-                    : const Border(
-                        bottom: BorderSide(
-                            color: AppTheme.borderColor, width: 0.5)),
-              ),
-              child: Text(items[i],
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  )),
-            ),
-          );
-        },
+        separatorBuilder: (_, __) => const Divider(height: 1, color: AppTheme.borderColor),
+        itemBuilder: (_, i) => GestureDetector(
+          onTap: () => onSelect(items[i]),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Text(items[i],
+                style: vMono(size: 12, weight: FontWeight.w500, color: AppTheme.textPrimary)),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _EmptyList extends StatelessWidget {
-  final String message;
-  const _EmptyList(this.message);
+// ─── Year track slider ────────────────────────────────────────────────────────
+
+class _YearTrack extends StatelessWidget {
+  final int value;
+  final int min;
+  final int max;
+  final ValueChanged<int> onChanged;
+
+  const _YearTrack({required this.value, required this.min, required this.max, required this.onChanged});
+
   @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(top: 4),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.borderColor),
+  Widget build(BuildContext context) {
+    return Column(children: [
+      SliderTheme(
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: 3,
+          activeTrackColor: AppTheme.primaryColor,
+          inactiveTrackColor: AppTheme.borderColor,
+          thumbColor: AppTheme.primaryColor,
+          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+          overlayColor: AppTheme.primaryColor.withValues(alpha: 0.15),
+          overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
         ),
-        child: Text(message,
-            style: const TextStyle(
-                fontSize: 13, color: AppTheme.textSecondary)),
-      );
+        child: Slider(
+          value: value.toDouble(),
+          min: min.toDouble(),
+          max: max.toDouble(),
+          divisions: max - min,
+          onChanged: (v) => onChanged(v.toInt()),
+        ),
+      ),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('$min', style: vMono(size: 9)),
+          Text('$max', style: vMono(size: 9)),
+        ],
+      ),
+    ]);
+  }
 }
 
-// ── Car Preview ────────────────────────────────────────────────────────────────
+// ─── Color row ────────────────────────────────────────────────────────────────
 
-class _CarPreview extends StatelessWidget {
-  final VehicleColor color;
-  final CarBodyType bodyType;
-  final String make;
-  final String model;
-  final int year;
-  final bool hasSelection;
+class _ColorRow extends StatelessWidget {
+  final VehicleColor selected;
+  final ValueChanged<VehicleColor> onSelect;
 
-  const _CarPreview({
-    required this.color,
-    required this.bodyType,
-    required this.make,
-    required this.model,
-    required this.year,
-    required this.hasSelection,
+  const _ColorRow({required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: VehicleColor.values.map((c) {
+        final isSelected = c == selected;
+        return GestureDetector(
+          onTap: () => onSelect(c),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: c.color,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? AppTheme.primaryColor : AppTheme.borderColor,
+                  width: isSelected ? 2 : 1,
+                ),
+                boxShadow: isSelected
+                    ? [BoxShadow(color: AppTheme.primaryColor.withValues(alpha: 0.4), blurRadius: 8)]
+                    : null,
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              c.label.substring(0, 3).toUpperCase(),
+              style: vMono(size: 8, letterSpacing: 0.08),
+            ),
+          ]),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ─── Step indicator ───────────────────────────────────────────────────────────
+
+class _ConfigStepper extends StatelessWidget {
+  final int step;
+  const _ConfigStepper({required this.step});
+
+  static const _steps = ['MARCA', 'MODELO', 'AÑO', 'COLOR'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_steps.length, (i) {
+        final active = i <= step;
+        return Row(children: [
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 16, height: 16,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: active ? AppTheme.primaryColor : AppTheme.borderColor,
+              ),
+              child: Center(
+                child: Text(
+                  '${i + 1}',
+                  style: vMono(size: 8, weight: FontWeight.w700,
+                      color: active ? Colors.black : AppTheme.textFaint),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(_steps[i],
+                style: vMono(
+                    size: 8.5,
+                    letterSpacing: 0.1,
+                    color: active ? AppTheme.primaryColor : AppTheme.textFaint)),
+          ]),
+          if (i < _steps.length - 1)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Container(width: 12, height: 1, color: AppTheme.borderColor),
+            ),
+        ]);
+      }),
+    );
+  }
+}
+
+// ─── Background grid ──────────────────────────────────────────────────────────
+
+class _VehicleBgPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.03)
+      ..strokeWidth = 0.5;
+    const step = 36.0;
+    for (var x = 0.0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (var y = 0.0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant CustomPainter _) => false;
+}
+
+// ─── Custom option row ───────────────────────────────────────────────────
+
+class _CustomOptionRow extends StatelessWidget {
+  final String text;
+  final String label;
+  final VoidCallback onTap;
+
+  const _CustomOptionRow({
+    required this.text,
+    required this.label,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = hasSelection
-        ? CarImageService.buildUrl(make: make, model: model, year: year)
-        : null;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      height: 160,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.backgroundSecondary,
-            color.color.withValues(alpha: 0.12),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor.withValues(alpha: 0.06),
+          border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(4),
         ),
-        border: Border.all(color: color.color.withValues(alpha: 0.25)),
-      ),
-      child: Stack(children: [
-        if (imageUrl != null)
-          Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: 210,
-            child: ClipRRect(
-              borderRadius:
-                  const BorderRadius.horizontal(right: Radius.circular(20)),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    _FallbackCar(color: color.color, bodyType: bodyType),
-                loadingBuilder: (_, child, progress) {
-                  if (progress == null) return child;
-                  return const Center(
-                    child: SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 1.5,
-                          color: AppTheme.primaryColor),
-                    ),
-                  );
-                },
-              ),
+        child: Row(children: [
+          const Icon(Icons.add_rounded, color: AppTheme.primaryColor, size: 14),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                  text: 'Usar "⁨$text⁩" como ',
+                  style: vMono(size: 11, color: AppTheme.textSecondary),
+                ),
+                TextSpan(
+                  text: label,
+                  style: vMono(size: 11, weight: FontWeight.w700, color: AppTheme.primaryColor),
+                ),
+                TextSpan(
+                  text: ' personalizado',
+                  style: vMono(size: 11, color: AppTheme.textSecondary),
+                ),
+              ]),
             ),
-          )
-        else
-          Positioned(
-            right: 16,
-            top: 20,
-            child: _FallbackCar(color: color.color, bodyType: bodyType),
           ),
-        Positioned(
-          left: 20,
-          bottom: 20,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                hasSelection ? make.toUpperCase() : 'SELECCIONA',
-                style: const TextStyle(
-                  fontFamily: 'Rajdhani',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textSecondary,
-                  letterSpacing: 3,
-                ),
-              ),
-              Text(
-                hasSelection ? model : 'tu auto',
-                style: const TextStyle(
-                  fontFamily: 'Rajdhani',
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimary,
-                  height: 1,
-                ),
-              ),
-              if (hasSelection)
-                Text('$year',
-                    style: const TextStyle(
-                        fontSize: 13, color: AppTheme.textSecondary)),
-            ],
-          ),
-        ),
-      ]),
+        ]),
+      ),
     );
   }
-}
-
-class _FallbackCar extends StatelessWidget {
-  final Color color;
-  final CarBodyType bodyType;
-  const _FallbackCar({required this.color, required this.bodyType});
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: 180,
-        height: 100,
-        child: CustomPaint(
-            painter: _CarSilhouettePainter(
-                bodyColor: color, bodyType: bodyType)),
-      );
-}
-
-class _CarSilhouettePainter extends CustomPainter {
-  final Color bodyColor;
-  final CarBodyType bodyType;
-  const _CarSilhouettePainter(
-      {required this.bodyColor, required this.bodyType});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final glow = Paint()
-      ..color = bodyColor.withValues(alpha: 0.3)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14);
-    canvas.drawOval(
-        Rect.fromLTWH(w * 0.1, h * 0.82, w * 0.8, h * 0.14), glow);
-    final body = Paint()
-      ..color = bodyColor
-      ..style = PaintingStyle.fill;
-    final hi = Paint()
-      ..color = Colors.white.withValues(alpha: 0.12)
-      ..style = PaintingStyle.fill;
-    switch (bodyType) {
-      case CarBodyType.suv:
-        _drawSuv(canvas, w, h, body, hi);
-      case CarBodyType.coupe:
-        _drawCoupe(canvas, w, h, body, hi);
-      case CarBodyType.truck:
-        _drawTruck(canvas, w, h, body, hi);
-      case CarBodyType.sedan:
-        _drawSedan(canvas, w, h, body, hi);
-    }
-  }
-
-  void _drawSedan(Canvas canvas, double w, double h, Paint b, Paint hi) {
-    canvas.drawPath(
-        Path()
-          ..moveTo(w * 0.05, h * 0.72)
-          ..lineTo(w * 0.05, h * 0.60)
-          ..lineTo(w * 0.12, h * 0.56)
-          ..cubicTo(
-              w * 0.20, h * 0.54, w * 0.26, h * 0.34, w * 0.34, h * 0.28)
-          ..cubicTo(
-              w * 0.45, h * 0.22, w * 0.60, h * 0.22, w * 0.68, h * 0.28)
-          ..cubicTo(
-              w * 0.76, h * 0.34, w * 0.82, h * 0.52, w * 0.86, h * 0.56)
-          ..lineTo(w * 0.95, h * 0.60)
-          ..lineTo(w * 0.95, h * 0.72)
-          ..close(),
-        b);
-    canvas.drawPath(
-        Path()
-          ..moveTo(w * 0.27, h * 0.38)
-          ..cubicTo(
-              w * 0.30, h * 0.30, w * 0.38, h * 0.26, w * 0.46, h * 0.26)
-          ..lineTo(w * 0.46, h * 0.44)
-          ..cubicTo(
-              w * 0.38, h * 0.44, w * 0.30, h * 0.42, w * 0.27, h * 0.38)
-          ..close(),
-        hi);
-    _wheels(canvas, w, h, w * 0.22, w * 0.75);
-  }
-
-  void _drawSuv(Canvas canvas, double w, double h, Paint b, Paint hi) {
-    canvas.drawPath(
-        Path()
-          ..moveTo(w * 0.04, h * 0.74)
-          ..lineTo(w * 0.04, h * 0.58)
-          ..lineTo(w * 0.10, h * 0.54)
-          ..lineTo(w * 0.16, h * 0.28)
-          ..lineTo(w * 0.84, h * 0.28)
-          ..lineTo(w * 0.90, h * 0.54)
-          ..lineTo(w * 0.96, h * 0.58)
-          ..lineTo(w * 0.96, h * 0.74)
-          ..close(),
-        b);
-    canvas.drawPath(
-        Path()
-          ..moveTo(w * 0.18, h * 0.50)
-          ..lineTo(w * 0.20, h * 0.32)
-          ..lineTo(w * 0.46, h * 0.32)
-          ..lineTo(w * 0.46, h * 0.50)
-          ..close(),
-        hi);
-    _wheels(canvas, w, h, w * 0.22, w * 0.76);
-  }
-
-  void _drawCoupe(Canvas canvas, double w, double h, Paint b, Paint hi) {
-    canvas.drawPath(
-        Path()
-          ..moveTo(w * 0.05, h * 0.74)
-          ..lineTo(w * 0.05, h * 0.62)
-          ..lineTo(w * 0.14, h * 0.58)
-          ..cubicTo(
-              w * 0.22, h * 0.54, w * 0.30, h * 0.26, w * 0.42, h * 0.22)
-          ..cubicTo(
-              w * 0.58, h * 0.18, w * 0.72, h * 0.22, w * 0.78, h * 0.30)
-          ..cubicTo(
-              w * 0.84, h * 0.40, w * 0.88, h * 0.54, w * 0.92, h * 0.58)
-          ..lineTo(w * 0.95, h * 0.62)
-          ..lineTo(w * 0.95, h * 0.74)
-          ..close(),
-        b);
-    canvas.drawPath(
-        Path()
-          ..moveTo(w * 0.28, h * 0.42)
-          ..cubicTo(
-              w * 0.32, h * 0.28, w * 0.42, h * 0.26, w * 0.50, h * 0.26)
-          ..lineTo(w * 0.48, h * 0.46)
-          ..close(),
-        hi);
-    _wheels(canvas, w, h, w * 0.20, w * 0.76);
-  }
-
-  void _drawTruck(Canvas canvas, double w, double h, Paint b, Paint hi) {
-    canvas.drawPath(
-        Path()
-          ..moveTo(w * 0.04, h * 0.74)
-          ..lineTo(w * 0.04, h * 0.50)
-          ..lineTo(w * 0.10, h * 0.46)
-          ..lineTo(w * 0.14, h * 0.26)
-          ..lineTo(w * 0.50, h * 0.26)
-          ..lineTo(w * 0.54, h * 0.46)
-          ..lineTo(w * 0.54, h * 0.74)
-          ..close(),
-        b);
-    canvas.drawRRect(
-        RRect.fromRectAndCorners(
-            Rect.fromLTWH(w * 0.54, h * 0.40, w * 0.42, h * 0.34),
-            topRight: const Radius.circular(4),
-            bottomRight: const Radius.circular(4)),
-        b);
-    canvas.drawPath(
-        Path()
-          ..moveTo(w * 0.15, h * 0.44)
-          ..lineTo(w * 0.17, h * 0.30)
-          ..lineTo(w * 0.46, h * 0.30)
-          ..lineTo(w * 0.48, h * 0.44)
-          ..close(),
-        hi);
-    _wheels(canvas, w, h, w * 0.20, w * 0.72);
-  }
-
-  void _wheels(Canvas canvas, double w, double h, double x1, double x2) {
-    final wPaint = Paint()
-      ..color = const Color(0xFF212121)
-      ..style = PaintingStyle.fill;
-    final rPaint = Paint()
-      ..color = const Color(0xFF9E9E9E)
-      ..style = PaintingStyle.fill;
-    for (final x in [x1, x2]) {
-      canvas.drawCircle(Offset(x, h * 0.76), h * 0.16, wPaint);
-      canvas.drawCircle(Offset(x, h * 0.76), h * 0.08, rPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_CarSilhouettePainter old) =>
-      old.bodyColor != bodyColor || old.bodyType != bodyType;
 }

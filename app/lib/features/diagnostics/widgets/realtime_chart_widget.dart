@@ -24,6 +24,7 @@ class RealtimeChartWidget extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         // Leyenda
         Row(

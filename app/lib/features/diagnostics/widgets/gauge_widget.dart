@@ -26,7 +26,7 @@ class GaugeWidget extends StatelessWidget {
     if (overrideColor != null) return overrideColor!;
     if (normalized > 0.8) return AppTheme.dangerColor;
     if (normalized > 0.6) return AppTheme.warningColor;
-    return AppTheme.primaryColor;
+    return AppTheme.textSecondary;
   }
 
   @override

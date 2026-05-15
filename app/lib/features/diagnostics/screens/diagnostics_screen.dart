@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:vehicle_predictive_maintenance_app/app/theme/app_theme.dart';
-import 'package:vehicle_predictive_maintenance_app/app/widgets/custom_card.dart';
+import 'package:vehicle_predictive_maintenance_app/app/widgets/vera_components.dart';
 import 'package:vehicle_predictive_maintenance_app/core/enums/app_enums.dart';
 import 'package:vehicle_predictive_maintenance_app/core/providers/app_provider.dart';
 import 'package:vehicle_predictive_maintenance_app/core/providers/diagnostics_provider.dart';
-import 'package:vehicle_predictive_maintenance_app/features/diagnostics/widgets/gauge_widget.dart';
 import 'package:vehicle_predictive_maintenance_app/features/diagnostics/widgets/realtime_chart_widget.dart';
 
 class DiagnosticsScreen extends StatelessWidget {
@@ -17,438 +17,322 @@ class DiagnosticsScreen extends StatelessWidget {
     final appProvider = context.watch<AppProvider>();
     final diagnostics = context.watch<DiagnosticsProvider>();
     final reading = diagnostics.latestReading;
-
-    final rpm = reading?.rpm ?? 900;
-    final temp = reading?.engineTemp ?? 88;
-    final speed = reading?.speed ?? 0;
-    final voltage = reading?.voltage ?? 12.7;
-    final engineLoad = reading?.engineLoad ?? 35;
-    final maf = reading?.maf ?? 8;
     final isDemo = appProvider.appMode == AppMode.demo;
 
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        // Header fijo
-        SliverToBoxAdapter(
-          child: _ScannerHeader(isDemo: isDemo),
-        ),
+    final rpm     = reading?.rpm          ?? 900;
+    final temp    = reading?.engineTemp   ?? 88.0;
+    final speed   = reading?.speed        ?? 0;
+    final voltage = reading?.voltage      ?? 12.7;
+    final engineLoad = reading?.engineLoad ?? 35.0;
+    final maf     = reading?.maf          ?? 8.0;
 
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      body: SafeArea(
+        child: Column(children: [
 
-              // Banner Demo
-              if (isDemo)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppTheme.warningColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: AppTheme.warningColor.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline_rounded,
-                          color: AppTheme.warningColor, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        'MODO DEMO — Datos simulados OBD-II',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.warningColor,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Los 3 gauges principales
-              CustomCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SectionLabel(label: 'LECTURAS OBD-II EN VIVO'),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        GaugeWidget(
-                          label: 'RPM',
-                          value: rpm,
-                          min: 0,
-                          max: 6000,
-                          unit: 'rpm',
-                          overrideColor: rpm > 4500 ? AppTheme.dangerColor : null,
-                        ),
-                        GaugeWidget(
-                          label: 'TEMP',
-                          value: temp,
-                          min: 60,
-                          max: 120,
-                          unit: '°C',
-                          overrideColor: temp > 100 ? AppTheme.dangerColor : null,
-                        ),
-                        GaugeWidget(
-                          label: 'VELOCIDAD',
-                          value: speed,
-                          min: 0,
-                          max: 160,
-                          unit: 'km/h',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    // Métricas secundarias
-                    Row(
-                      children: [
-                        _MetricChip(
-                          label: 'Carga motor',
-                          value: '${engineLoad.toStringAsFixed(0)}%',
-                          icon: Icons.speed_rounded,
-                        ),
-                        const SizedBox(width: 10),
-                        _MetricChip(
-                          label: 'Voltaje',
-                          value: '${voltage.toStringAsFixed(1)} V',
-                          icon: Icons.bolt_rounded,
-                          alert: voltage < 12.0,
-                        ),
-                        const SizedBox(width: 10),
-                        _MetricChip(
-                          label: 'MAF',
-                          value: '${maf.toStringAsFixed(1)} g/s',
-                          icon: Icons.air_rounded,
-                        ),
-                      ],
-                    ),
-                  ],
+          // ── Top bar ──────────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppTheme.borderColor))),
+            child: Row(children: [
+              const VeraMark(size: 14),
+              const SizedBox(width: 8),
+              Text('VERA', style: vMono(color: AppTheme.textPrimary, size: 9.5, letterSpacing: 0.18)),
+              Text(' · obd-ii', style: vMono(size: 9.5, color: AppTheme.textFaint, letterSpacing: 0.18)),
+              const Spacer(),
+              Container(
+                width: 5, height: 5,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDemo ? AppTheme.warningColor : AppTheme.primaryColor,
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              // Gráfico en tiempo real
-              CustomCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SectionLabel(label: 'ÚLTIMAS 20 LECTURAS'),
-                    const SizedBox(height: 16),
-                    RealtimeChartWidget(readings: diagnostics.readings),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Estado de anomalía
-              if (reading != null && reading.isAnomalous)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.dangerColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                        color: AppTheme.dangerColor.withValues(alpha: 0.4)),
-                    boxShadow: AppTheme.glowShadow(AppTheme.dangerColor,
-                        intensity: 0.15),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.dangerColor.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.warning_rounded,
-                            color: AppTheme.dangerColor, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'ANOMALÍA DETECTADA',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.dangerColor,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                            Text(
-                              'Valores fuera de rango normal',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Botón Analizar con IA
-              _AnalyzeButton(
-                onTap: reading != null
-                    ? () => context.go('/predict')
-                    : null,
-              ),
+              const SizedBox(width: 5),
+              Text(isDemo ? 'demo' : 'live', style: vMono(size: 9.5, color: AppTheme.textFaint)),
             ]),
           ),
-        ),
-      ],
-    );
-  }
-}
 
-class _ScannerHeader extends StatelessWidget {
-  final bool isDemo;
-  const _ScannerHeader({required this.isDemo});
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 16,
-        left: 20,
-        right: 20,
-        bottom: 20,
-      ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppTheme.backgroundSecondary, AppTheme.background],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
-      child: Row(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'OBD-II SCANNER',
-                style: TextStyle(
-                  fontFamily: 'Rajdhani',
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimary,
-                  letterSpacing: 2,
+                // Demo notice (minimal)
+                if (isDemo) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warningColor.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(children: [
+                      Container(width: 4, height: 4, decoration: BoxDecoration(
+                          shape: BoxShape.circle, color: AppTheme.warningColor)),
+                      const SizedBox(width: 8),
+                      Text('Modo demo — datos simulados',
+                          style: vMono(size: 10, color: AppTheme.warningColor, letterSpacing: 0.1)),
+                    ]),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // ── Section: Lecturas primarias ────────────────────────
+                Text('Lecturas', style: GoogleFonts.spaceGrotesk(
+                    fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                Text('OBD-II en vivo',
+                    style: vMono(size: 9, color: AppTheme.textFaint, letterSpacing: 0.1)),
+                const SizedBox(height: 14),
+
+                // 3 main gauges
+                Row(children: [
+                  Expanded(child: _Gauge(
+                    label: 'RPM',
+                    value: rpm,
+                    min: 0, max: 6000,
+                    unit: 'rpm',
+                    alertThreshold: 4500,
+                  )),
+                  const SizedBox(width: 8),
+                  Expanded(child: _Gauge(
+                    label: 'Temperatura',
+                    value: temp,
+                    min: 60, max: 120,
+                    unit: '°C',
+                    alertThreshold: 100,
+                  )),
+                  const SizedBox(width: 8),
+                  Expanded(child: _Gauge(
+                    label: 'Velocidad',
+                    value: speed.toDouble(),
+                    min: 0, max: 200,
+                    unit: 'km/h',
+                  )),
+                ]),
+
+                const SizedBox(height: 8),
+
+                // 3 secondary tiles
+                Row(children: [
+                  Expanded(child: _SecondaryTile(
+                    label: 'Carga motor',
+                    value: '${engineLoad.toInt()}%',
+                  )),
+                  const SizedBox(width: 8),
+                  Expanded(child: _SecondaryTile(
+                    label: 'Voltaje',
+                    value: '${voltage.toStringAsFixed(1)} V',
+                    alert: voltage < 12.0,
+                  )),
+                  const SizedBox(width: 8),
+                  Expanded(child: _SecondaryTile(
+                    label: 'MAF',
+                    value: '${maf.toStringAsFixed(1)}',
+                    unit: 'g/s',
+                  )),
+                ]),
+
+                const SizedBox(height: 28),
+
+                // ── Section: Gráfico ───────────────────────────────────
+                Row(children: [
+                  Text('Gráfico', style: GoogleFonts.spaceGrotesk(
+                      fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                  const Spacer(),
+                  const VeraLiveDot(),
+                  const SizedBox(width: 5),
+                  Text('live', style: vMono(size: 9, color: AppTheme.textFaint)),
+                ]),
+                const SizedBox(height: 14),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    color: AppTheme.surface,
+                    padding: const EdgeInsets.all(16),
+                    child: RealtimeChartWidget(readings: diagnostics.readings),
+                  ),
                 ),
-              ),
-              Text(
-                'Diagnóstico en tiempo real',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textSecondary,
-                  letterSpacing: 0.5,
+
+                const SizedBox(height: 28),
+
+                // ── Section: Canales ───────────────────────────────────
+                Text('Todos los canales',
+                    style: GoogleFonts.spaceGrotesk(
+                        fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(children: [
+                    _DataRow(label: 'RPM', value: '${rpm.toInt()} rpm'),
+                    _DataRow(label: 'Temp. motor', value: '${temp.toInt()} °C',
+                        valueColor: temp > 100 ? AppTheme.dangerColor : null),
+                    _DataRow(label: 'Velocidad', value: '${speed.toInt()} km/h'),
+                    _DataRow(label: 'Voltaje batería', value: '${voltage.toStringAsFixed(2)} V',
+                        valueColor: voltage < 12.0 ? AppTheme.warningColor : null),
+                    _DataRow(label: 'Carga motor', value: '${engineLoad.toInt()} %'),
+                    _DataRow(label: 'Flujo aire (MAF)', value: '${maf.toStringAsFixed(1)} g/s'),
+                    _DataRow(label: 'Modo', value: isDemo ? 'Demo' : 'OBD-II live', last: true),
+                  ]),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 24),
+
+                // ── CTA ────────────────────────────────────────────────
+                GestureDetector(
+                  onTap: () => context.go('/predict'),
+                  child: Container(
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white, width: 1),
+                    ),
+                    child: Center(
+                      child: Text('ANALIZAR',
+                          style: vMono(size: 13, weight: FontWeight.w700, color: Colors.white, letterSpacing: 0.12)),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
           ),
-          const Spacer(),
-          // Indicador pulsante de lectura activa
-          _PulsingDot(color: isDemo ? AppTheme.warningColor : AppTheme.successColor),
-        ],
+        ]),
       ),
     );
   }
 }
 
-class _PulsingDot extends StatefulWidget {
-  final Color color;
-  const _PulsingDot({required this.color});
+// ─── Gauge tile ───────────────────────────────────────────────────────────────
 
-  @override
-  State<_PulsingDot> createState() => _PulsingDotState();
-}
-
-class _PulsingDotState extends State<_PulsingDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1000))
-      ..repeat(reverse: true);
-    _anim = Tween<double>(begin: 0.4, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, __) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: widget.color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: widget.color.withValues(alpha: _anim.value * 0.5)),
-          boxShadow: [
-            BoxShadow(
-              color: widget.color.withValues(alpha: _anim.value * 0.3),
-              blurRadius: 12,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: widget.color.withValues(alpha: _anim.value),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              'ACTIVO',
-              style: TextStyle(
-                fontSize: 10,
-                color: widget.color,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
+class _Gauge extends StatelessWidget {
   final String label;
-  const _SectionLabel({required this.label});
+  final double value, min, max;
+  final String unit;
+  final double? alertThreshold;
 
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        fontSize: 11,
-        color: AppTheme.textSecondary,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 2,
-      ),
-    );
-  }
-}
-
-class _MetricChip extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final bool alert;
-
-  const _MetricChip({
+  const _Gauge({
     required this.label,
     required this.value,
-    required this.icon,
+    required this.min,
+    required this.max,
+    required this.unit,
+    this.alertThreshold,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = ((value - min) / (max - min)).clamp(0.0, 1.0);
+    final isAlert = alertThreshold != null && value > alertThreshold!;
+    final color = isAlert ? AppTheme.dangerColor : AppTheme.textSecondary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+      decoration: BoxDecoration(
+        color: isAlert
+            ? AppTheme.dangerColor.withValues(alpha: 0.06)
+            : AppTheme.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(label, style: vMono(size: 8.5, color: AppTheme.textFaint, letterSpacing: 0.15),
+            textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        VeraRing(
+          value: pct,
+          max: 1.0,
+          color: color,
+          size: 60,
+          strokeWidth: 4,
+          center: Text(
+            value >= 100
+                ? value.toInt().toString()
+                : value.toStringAsFixed(value >= 10 ? 0 : 1),
+            style: GoogleFonts.spaceGrotesk(
+                fontSize: 15, fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary, height: 1),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(unit, style: vMono(size: 8, color: AppTheme.textFaint)),
+      ]),
+    );
+  }
+}
+
+// ─── Secondary tile ───────────────────────────────────────────────────────────
+
+class _SecondaryTile extends StatelessWidget {
+  final String label, value;
+  final String unit;
+  final bool alert;
+
+  const _SecondaryTile({
+    required this.label,
+    required this.value,
+    this.unit = '',
     this.alert = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = alert ? AppTheme.dangerColor : AppTheme.primaryColor;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: alert ? AppTheme.dangerColor : AppTheme.textPrimary,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 9, color: AppTheme.textSecondary),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(12),
       ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: vMono(size: 8, color: AppTheme.textFaint, letterSpacing: 0.15)),
+        const SizedBox(height: 5),
+        Text(value,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 16, fontWeight: FontWeight.w700,
+              color: alert ? AppTheme.warningColor : AppTheme.textPrimary,
+              height: 1,
+            )),
+      ]),
     );
   }
 }
 
-class _AnalyzeButton extends StatelessWidget {
-  final VoidCallback? onTap;
-  const _AnalyzeButton({this.onTap});
+// ─── Data row (channel table) ─────────────────────────────────────────────────
+
+class _DataRow extends StatelessWidget {
+  final String label, value;
+  final Color? valueColor;
+  final bool last;
+
+  const _DataRow({
+    required this.label,
+    required this.value,
+    this.valueColor,
+    this.last = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 300),
-        opacity: onTap != null ? 1.0 : 0.5,
-        child: Container(
-          height: 60,
-          decoration: BoxDecoration(
-            gradient: onTap != null ? AppTheme.primaryGradient : null,
-            color: onTap == null ? AppTheme.borderColor : null,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: onTap != null
-                ? AppTheme.glowShadow(AppTheme.primaryColor, intensity: 0.35)
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.psychology_rounded,
-                  color: Colors.black, size: 22),
-              const SizedBox(width: 12),
-              Text(
-                'ANALIZAR CON IA',
-                style: TextStyle(
-                  fontFamily: 'Rajdhani',
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black,
-                  letterSpacing: 2,
-                ),
-              ),
-            ],
-          ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          child: Row(children: [
+            Text(label, style: vMono(size: 11, color: AppTheme.textSecondary, letterSpacing: 0.05)),
+            const Spacer(),
+            Text(value,
+                style: GoogleFonts.spaceGrotesk(
+                    fontSize: 13, fontWeight: FontWeight.w600,
+                    color: valueColor ?? AppTheme.textPrimary)),
+          ]),
         ),
-      ),
+        if (!last) Divider(color: AppTheme.borderColor, height: 1),
+      ],
     );
   }
 }
