@@ -60,6 +60,9 @@ dependencies:
   # Selección de imágenes de la galería
   image_picker: ^1.1.2
 
+  # Inferencia en el dispositivo (TensorFlow Lite)
+  tflite_flutter: ^0.11.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -76,4 +79,5 @@ flutter:
     - assets/animations/
     - assets/images/vera_logo.svg
     - assets/models/
+    - assets/ml/
 

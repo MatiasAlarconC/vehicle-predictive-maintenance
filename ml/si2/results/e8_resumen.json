@@ -1,0 +1,43 @@
+{
+ "dif_max_en_linea": 7.633464971235071e-06,
+ "ventanas_en_linea": 8731,
+ "alertas_sanas": 17,
+ "casos_obd": 80,
+ "series_falla_obd": 60,
+ "lecturas_obd": 178127,
+ "ms_por_lectura_12pid": 0.275790944309394,
+ "concordancia_alertas_obd": 0.9997983870967742,
+ "ventanas_obd": 34720,
+ "detectadas_directo": 40,
+ "detectadas_obd": 40,
+ "error_max_cuantizacion": {
+  "ENGINE_RPM": 0.12489999830722809,
+  "VEHICLE_SPEED": 0.0,
+  "THROTTLE": 0.0005000000237487257,
+  "ENGINE_LOAD": 0.0005000000237487257,
+  "COOLANT_TEMPERATURE": 0.5,
+  "LONG_TERM_FUEL_TRIM_BANK_1": 0.375,
+  "SHORT_TERM_FUEL_TRIM_BANK_1": 0.3905999958515167,
+  "INTAKE_MANIFOLD_PRESSURE": 0.5,
+  "INTAKE_AIR_TEMP": 0.0,
+  "TIMING_ADVANCE": 0.0,
+  "CATALYST_TEMPERATURE_BANK1_SENSOR1": 0.0,
+  "CONTROL_MODULE_VOLTAGE": 0.0005000000237487257
+ },
+ "pids_soportados": [
+  "04",
+  "05",
+  "06",
+  "07",
+  "0B",
+  "0C",
+  "0D",
+  "0E",
+  "0F",
+  "11",
+  "20",
+  "3C",
+  "40",
+  "42"
+ ]
+}

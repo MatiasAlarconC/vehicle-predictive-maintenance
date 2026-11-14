@@ -1,0 +1,78 @@
+{
+ "filas": 60439,
+ "con_vehiculo": 47514,
+ "filas_usadas": 47452,
+ "vehiculos": 12,
+ "registros_dtc": 11925,
+ "dtc_por_vehiculo": {
+  "car13": 182,
+  "car6": 6070,
+  "car9": 5673
+ },
+ "codigos": {
+  "car13": "P0079P2004P3000",
+  "car6": "P0133",
+  "car9": "C0300"
+ },
+ "disponibilidad_pid": {
+  "ENGINE_RPM": 0.917,
+  "SPEED": 1.0,
+  "THROTTLE_POS": 0.833,
+  "ENGINE_LOAD": 0.833,
+  "ENGINE_COOLANT_TEMP": 0.917,
+  "INTAKE_MANIFOLD_PRESSURE": 0.75,
+  "AIR_INTAKE_TEMP": 0.917,
+  "TIMING_ADVANCE": 0.917,
+  "SHORT TERM FUEL TRIM BANK 1": 0.917,
+  "MAF": 0.167,
+  "FUEL_LEVEL": 0.083,
+  "BAROMETRIC_PRESSURE(KPA)": 0.083
+ },
+ "vehiculos_con_todos": 0,
+ "heterogeneidad": {
+  "ENGINE_RPM": {
+   "H": 2627.8598203764127,
+   "p": 0.0,
+   "eta2": 0.07745167728346443,
+   "vehiculos": 12
+  },
+  "ENGINE_LOAD": {
+   "H": 8808.484258913315,
+   "p": 0.0,
+   "eta2": 0.28472665735365765,
+   "vehiculos": 12
+  },
+  "ENGINE_COOLANT_TEMP": {
+   "H": 16910.18989513986,
+   "p": 0.0,
+   "eta2": 0.4986335574382539,
+   "vehiculos": 12
+  },
+  "INTAKE_MANIFOLD_PRESSURE": {
+   "H": 2544.0487621889583,
+   "p": 0.0,
+   "eta2": 0.10132899361215758,
+   "vehiculos": 10
+  },
+  "SPEED": {
+   "H": 16240.894397996957,
+   "p": 0.0,
+   "eta2": 0.34933800551016936,
+   "vehiculos": 12
+  }
+ },
+ "cramer_v": 0.9656378205736975,
+ "aleatoria": {
+  "recall": 0.9706498951781971,
+  "precision": 0.9769581363943282,
+  "auc": 0.9985454119726698,
+  "auc_pr": 0.996342417340492
+ },
+ "por_vehiculo": {
+  "recall": 0.20159329140461216,
+  "precision": 0.3497235961594414,
+  "auc": 0.6296873851340159,
+  "auc_pr": 0.3426042807231386
+ },
+ "prevalencia_dtc": 0.2513065834949001
+}

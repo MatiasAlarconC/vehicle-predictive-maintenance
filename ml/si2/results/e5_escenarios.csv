@@ -1,0 +1,8 @@
+escenario,peso,leve,moderada,severa,total,latencia_mediana_s,recall_ventana,top1,top3
+Sobrecalentamiento,3,1.0,1.0,1.0,1.0,97.5,0.7721483942414175,0.9741842954463965,1.0
+Falla de carga (alternador),3,0.8,0.85,0.9,0.85,75.0,0.6987020160176747,0.9865612648221344,1.0
+Mezcla pobre (fuga de vacío),2,0.1,0.8,1.0,0.6333333333333333,35.0,0.5781163434903047,1.0,1.0
+Ralentí inestable (fallo de encendido),2,0.15,1.0,1.0,0.7166666666666667,35.0,0.6658361018826136,1.0,1.0
+Sesgo del sensor MAP,1,0.1,0.3,0.65,0.35,85.0,0.1440443213296399,1.0,1.0
+Termostato abierto,1,0.55,0.65,0.75,0.65,125.0,0.4155124653739612,0.956,1.0
+Ruido en el sensor de temperatura,1,0.0,0.0,1.0,0.3333333333333333,60.0,0.2558075221238938,1.0,1.0

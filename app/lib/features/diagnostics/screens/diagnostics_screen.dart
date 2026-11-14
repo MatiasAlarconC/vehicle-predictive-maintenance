@@ -7,6 +7,7 @@ import 'package:vehicle_predictive_maintenance_app/app/widgets/vera_components.d
 import 'package:vehicle_predictive_maintenance_app/core/enums/app_enums.dart';
 import 'package:vehicle_predictive_maintenance_app/core/providers/app_provider.dart';
 import 'package:vehicle_predictive_maintenance_app/core/providers/diagnostics_provider.dart';
+import 'package:vehicle_predictive_maintenance_app/features/diagnostics/widgets/obd_anomaly_card.dart';
 import 'package:vehicle_predictive_maintenance_app/features/diagnostics/widgets/realtime_chart_widget.dart';
 
 class DiagnosticsScreen extends StatelessWidget {
@@ -60,8 +61,11 @@ class DiagnosticsScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
+                const ObdAnomalyCard(),
+                const SizedBox(height: 20),
+
                 // Demo notice (minimal)
-                if (isDemo) ...[
+                if (isDemo && !diagnostics.obdConnected) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
